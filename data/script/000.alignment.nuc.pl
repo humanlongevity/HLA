@@ -10,7 +10,7 @@ while(<>)
 {
 	$i++;
 	next if m/^\S/;
-	if(m/^ (Prot|AA codon)/)
+	if(m/^ (cDNA|Prot|AA codon)/)
 	{
 		$i = 0;
 		next;

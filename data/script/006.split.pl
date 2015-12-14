@@ -21,7 +21,7 @@ for my $e(keys %exons)
 	}
 }
 
-#system("ls $out-*.faa | parallel muscle -sv -in {} -out {.}.msa");
+system("ls $out-*.faa | parallel muscle -sv -in {} -out {.}.msa");
 
 open(IN, "cat $out-*.msa |") or die $!;
 my $name;
@@ -46,7 +46,7 @@ for my $n(sort keys %msa)
 	$len =~ s/L//;
 	my $seq = $msa{$n};
 	my $LEN = length $seq;
-	print OUT "$type\t$exon\t$len\t$LEN\t$pre\t$suf\t$suf2\t$seq\n";
+	print OUT "$n\t$type\t$exon\t$len\t$LEN\t$pre\t$suf\t$suf2\t$seq\n";
 }
 close OUT;
 
