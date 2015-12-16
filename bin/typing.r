@@ -50,6 +50,20 @@ dt <- dt[left==0 & right==0]
 mat <- dcast(dt, q ~ type, value.var = 'specific', fun.aggregate = max, fill = 0)
 qs <- mat$q
 mat[, q := NULL]
+mat <- as.matrix(mat)
+
+# filter out types with too few reads
+counts <- colSums(mat)
+summary(counts)
+cand <- counts > quantile(counts, 0.25) 
+mat <- mat[, cand]
+## filter out reads with no alleles mapped to
+counts <- rowSums(mat)
+summary(counts)
+cand <- counts > 0
+mat <- mat[cand, ]
+qs <- qs[cand]
+
 allele.names <- colnames(mat)
 allele.genes <- unique(sub('\\*.+', '', allele.names))
 alleles <- 1:ncol(mat)
