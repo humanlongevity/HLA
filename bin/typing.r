@@ -25,6 +25,9 @@ print(sort(table(spanned$type)))
 dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
 print(nrow(dt))
 
+# only keep Class I (A, B, C) and DRB1, DQB1, and DPB1.
+dt <- dt[msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1')]
+
 # filter pair end matches
 dt[, qp := sub('/\\d$', '', q)]
 nr <- dt[, .(pair1 = length(unique(q))), keyby = qp]
