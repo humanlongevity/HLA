@@ -48,6 +48,16 @@ while(<IN>)
 }
 print STDERR "found ", scalar(keys %tseq), " HLA exons\n";
 
+#print STDERR "processing the frame shift file\n";
+#open(IN, $shift_file) or die $!;
+#while(<IN>)
+#{
+#	chomp;
+#	my ($id, $exon, $shift) = split(/\t/, $_);
+#	my $type = $1 if $id =~ m/(.+)-E/;
+#	$shift{$type}->{$exon} = $shift;
+#}
+
 print STDERR "processing DAA file\n";
 open(IN, "diamond view -a '$daa_file' -o /dev/stdout |") or die $!;
 my %mlen;
@@ -181,7 +191,7 @@ for my $g(keys %match)
 				$suf = $suf2;
 			}
 			print STDERR "\t\t\t\t\tsuffix matched ($suf{$t} vs $suf)\n" if $pre_len;
-			print "$q\t$qlen{$q}:$qs-$qe\t$t\t$tlen{$t}:$ts-$te\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n";
+			print "$q\t$qlen{$q}:$qs-$qe\t$t\t$tlen{$t}\t$ts\t$te\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n";
 		}
 	}
 }

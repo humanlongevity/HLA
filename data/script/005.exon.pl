@@ -1,6 +1,9 @@
 #!/usr/bin/env perl
 use strict;
 
+die "usage: $0 nuc_align.msa out.frame_shift out.faa\n" unless $#ARGV == 2;
+my ($msa_file, $out_shift, $out_faa) = @ARGV;
+
 my %codon = (
   TTT => "F", TTC => "F", TTA => "L", TTG => "L",
   TCT => "S", TCC => "S", TCA => "S", TCG => "S",
@@ -20,8 +23,10 @@ my %codon = (
   GGT => "G", GGC => "G", GGA => "G", GGG => "G",
 );
 
+open IN, $msa_file or die $!;
 my %seq;
-while(<>)
+my %shift;
+while(<IN>)
 {
 	chomp;
 	my ($id, $len, $start, $to, $ndiff, $seq) = split(/\t/, $_);
@@ -32,9 +37,25 @@ while(<>)
 	# because blastx type alinger can still map the part after frame shift
 	for my $exon(@exons)
 	{
+		my $shift;
 		$e++;
 		my $pre = $1 if $exon =~ s/^(\S{1,2}) //;
 		my $suf = $1 if $exon =~ s/ (\S{1,2})$//;
+		my $i = 0;
+		while(1)
+		{
+			my $replaced = $exon=~s/ (\S\S\S)(\S)/ \1 \2/;
+			last unless $replaced;
+		}
+		for my $codon(split(/\s/, $exon))
+		{
+			$i++;
+			if(length($codon) % 3)
+			{
+				$shift = $i;
+				last;
+			}
+		}
 		$exon =~ s/\s//g;
 		$exon =~ s/(...)/\1 /g;
 		$exon =~ s/ $//;
@@ -50,11 +71,17 @@ while(<>)
 #			last if $aa eq 'X';
 		}
 		my $len = length($prot);
-#		print ">$id-E$e-P$pos-L$len-pre-$pre-suf-$suf-suf2-$suf2\n$prot\n" if $len >= 10;
-		$seq{"$id-E$e-L$len-pre-$pre-suf-$suf-suf2-$suf2"} = $prot if $len >= 10;
+		if($len >= 10)
+		{
+			my $id = "$id-E$e-L$len-pre-$pre-suf-$suf-suf2-$suf2";
+			$seq{$id} = $prot;
+			$shift{$id}->{"E$e"} = $shift if $shift;
+		}
 	}
 }
 
+open OUT, ">$out_faa" or die $!;
+open SHIFT, ">$out_shift" or die $!;
 my %done;
 for my $id(sort keys %seq)
 {
@@ -70,8 +97,12 @@ for my $id(sort keys %seq)
 		}
 	}else
 	{
-		print ">$newid\n$seq{$id}\n";
+		print OUT ">$newid\n$seq{$id}\n";
 		$done{$newid} = $id;
+		for my $e(keys %{$shift{$id}})
+		{
+			print SHIFT "$newid\t$e\t$shift{$id}->{$e}\n";
+		}
 	}
 }
 

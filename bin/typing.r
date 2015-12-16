@@ -5,7 +5,25 @@ options(mc.cores = detectCores())
 library(data.table)
 
 dt <- fread(args[1])
-setnames(dt, c('q', 'qpos', 't', 'tpos', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
+setnames(dt, c('q', 'qpos', 't', 'tlen', 'ts', 'te', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
+print(nrow(dt))
+
+# for HLA alleles with frame shift variants, we require reads span over the frame shift site
+frame.shift <- fread('data/hla.shift')
+setnames(frame.shift, c('t', 'exon', 'shift'))
+frame.shift[, type := sub('-E.+', '', t)]
+frame.shift[, t := NULL]
+setkey(frame.shift, type, exon)
+frame.shift <- unique(frame.shift)
+setkey(dt, type, exon)
+dt <- frame.shift[dt]
+print(nrow(dt))
+spanned <- dt[ts < shift-1 & te > shift+1]
+print(nrow(spanned))
+print(sort(table(spanned$type)))
+
+dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
+print(nrow(dt))
 
 # filter pair end matches
 dt[, qp := sub('/\\d$', '', q)]
@@ -18,7 +36,8 @@ dt <- nr[dt]
 dt <- dt[pair1 == pair2]
 
 # filter non-specific matching
-dt <- dt[specific==1 & left==0 & right==0]
+#dt <- dt[specific==1 & left==0 & right==0]
+dt <- dt[left==0 & right==0]
 # TODO, filter core exons
 
 #library(IRanges)
