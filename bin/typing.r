@@ -105,6 +105,13 @@ solution <- lps$solution[alleles]
 names(solution) <- allele.names
 solution <- solution[order(-solution)]
 solution <- solution[solution > 0]
+solution <- names(solution)
+print(solution)
+
+explained <- sum(apply(mat[, solution], 1, max))
+delta <- explained - sapply(seq_along(solution), function(i) sum(apply(mat[, solution[-i]], 1, max)))
+importance <- delta / explained * length(solution)
+solution <- data.frame(solution, importance)
 print(solution)
 
 save.image(file = 'temp.rda')
