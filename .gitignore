@@ -1,0 +1,7 @@
+temp/
+test/
+hla.dmnd
+.ipynb_checkpoints/
+*.swp
+raw/
+old/
