@@ -113,5 +113,6 @@ delta <- explained - sapply(seq_along(solution), function(i) sum(apply(mat[, sol
 importance <- delta / explained * length(solution)
 solution <- data.frame(solution, importance)
 print(solution)
+write.table(solution, row = F, col = F, sep = '\t', quo = F, file = args[2])
 
-save.image(file = 'temp.rda')
+save.image(file = sprintf('%s.temp.rda', args[2]))
