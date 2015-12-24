@@ -28,8 +28,8 @@ dt[, qp := sub('/\\d$', '', q)]
 nr <- dt[, .(pair1 = length(unique(q))), keyby = qp]
 setkey(dt, qp)
 dt <- nr[dt]
-nr <- dt[, .(pair2 = length(unique(q))), keyby = .(qp, t)]
-setkey(dt, qp, t)
+nr <- dt[, .(pair2 = length(unique(q))), keyby = .(qp, type)]
+setkey(dt, qp, type)
 dt <- nr[dt]
 dt <- dt[pair1 == pair2]
 
@@ -167,4 +167,4 @@ solution <- data.frame(solution, importance)
 print(solution)
 write.table(solution, row = F, col = F, sep = '\t', quo = F, file = args[2])
 
-#save.image(file = sprintf('%s.temp.rda', args[2]))
+save.image(file = sprintf('%s.temp.rda', args[2]))
