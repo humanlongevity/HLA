@@ -6,6 +6,7 @@ library(data.table)
 
 dt <- fread(args[1])
 setnames(dt, c('q', 'qpos', 't', 'tlen', 'ts', 'te', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
+dt[, specific := as.double(specific)]
 
 # for HLA alleles with frame shift variants, we require reads span over the frame shift site
 frame.shift <- fread('data/hla.shift')
@@ -21,7 +22,10 @@ spanned <- dt[ts < shift-1 & te > shift+1]
 dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
 
 # only keep Class I (A, B, C) and DRB1, DQB1, and DPB1.
+ignore <- dt[! msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1'), q]
 dt <- dt[msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1')]
+dt[q %in% ignore, specific := 0.02]
+dt[specific == 0, specific := 0.02]
 
 # filter pair end matches
 dt[, qp := sub('/\\d$', '', q)]
@@ -49,6 +53,9 @@ mat <- dcast(dt, q ~ type, value.var = 'specific', fun.aggregate = max, fill = 0
 qs <- mat$q
 mat[, q := NULL]
 mat <- as.matrix(mat)
+weight <- apply(mat, 1, max)
+mat2 <- mat
+mat[mat > 0] <- 1
 
 # filter out types with too few reads
 counts <- colSums(mat)
@@ -61,6 +68,7 @@ summary(counts)
 cand <- counts > 0
 mat <- mat[cand, ]
 qs <- qs[cand]
+weight <- weight[cand]
 
 allele.names <- colnames(mat)
 allele.genes <- unique(sub('\\*.+', '', allele.names))
@@ -73,7 +81,8 @@ gamma <- 0.01
 beta <- 0.009
 
 library(lpSolve)
-f.obj <-  c(rep(-gamma, na), rep(1,  nr), rep(-beta, nr), 0  )
+#f.obj <-  c(rep(-gamma, na), rep(1,  nr), rep(-beta, nr), 0  )
+f.obj <-  c(rep(-gamma, na), weight,      -beta * weight, 0  )
 f.type <- c(rep('b', na),    rep('b',nr), rep('i',   nr), 'i')
 
 all.zero <- c(rep(0, na), rep(0, 2 * nr), 0)
@@ -160,11 +169,37 @@ solution <- solution[solution > 0]
 solution <- names(solution)
 print(solution)
 
-explained <- sum(apply(mat[, solution], 1, max))
-delta <- explained - sapply(seq_along(solution), function(i) sum(apply(mat[, solution[-i]], 1, max)))
-importance <- delta / explained * length(solution)
-solution <- data.frame(solution, importance)
-print(solution)
-write.table(solution, row = F, col = F, sep = '\t', quo = F, file = args[2])
+more <- do.call(rbind, mclapply(solution, function(s){
+	minus1 <- solution[solution != s]
+	gene <- sub('(.+?)\\*.+', '^\\1', s)
+	minus2 <- solution[-grep(gene, solution)]
+	others <- allele.names[grepl(gene, allele.names) & !(allele.names %in% minus2)]
+	cand <- do.call(rbind, lapply(others, function(i){
+    	c(
+        	'm1' = sum(apply(mat2[, c(minus1, i)], 1, max)),
+        	'm2' = sum(apply(mat2[, c(minus2, i)], 1, max))
+    	)
+	}))
+	cand <- data.frame(cand)
+	cand$solution <- others
+	cand <- cand[order(-cand$m1 * 1e8 - cand$m2), ]
+	cand$rank <- 1:nrow(cand)
+	cand <- cand[1:100,]
+	cand$original <- s
+	cand
+}))
+best <- subset(more, rank == 1)
+
+important <- function(sol){
+	sol <- as.character(sol)
+	explained <- sum(apply(mat[, sol], 1, max))
+	delta <- explained - sapply(seq_along(sol), function(i) sum(apply(mat[, sol[-i]], 1, max)))
+	delta / explained * length(sol)
+}
+
+best$imp.original <- important(best$original)
+best$imp.solution <- important(best$solution)
+print(best)
+write.table(best, row = F, col = F, sep = '\t', quo = F, file = args[2])
 
 save.image(file = sprintf('%s.temp.rda', args[2]))
