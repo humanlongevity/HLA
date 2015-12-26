@@ -21,10 +21,16 @@ spanned <- dt[ts < shift-1 & te > shift+1]
 
 dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
 
-# filter non-specific matching
-#dt <- dt[specific==1 & left==0 & right==0]
-dt <- dt[left==0 & right==0]
-# TODO, filter core exons
+# only keep Class I (A, B, C) and DRB1, DQB1, and DPB1, and those very similar to the above:
+# H, Y (27% and 11% with A), and 
+# DRB3, DRB5, DRB7, DRB4, DRB2 (50%, 23%, 16%, 9%, and 4% with DRB1)
+keep <- c('ClassI', 'DRB1', 'DQB1', 'DPB1', 'H', 'Y', 'DRB3', 'DRB5', 'DRB7', 'DRB4', 'DRB2')
+#keep <- c('ClassI', 'DRB1', 'DQB1', 'DPB1', 'H', 'Y')
+ignore <- dt[! msa %in% keep, q]
+dt <- dt[msa %in% keep]
+dt[q %in% ignore, specific := 0]
+#dt[q %in% ignore, specific := 0.1]
+#dt[specific == 0, specific := 0.1]
 
 # filter pair end matches
 dt[, qp := sub('/\\d$', '', q)]
@@ -38,17 +44,10 @@ dt <- dt[pair1 == pair2]
 specific.pairs <- dt[pair1 == 2 & specific == 1, qp]
 dt[qp %in% specific.pairs, specific := 1]
 
-# only keep Class I (A, B, C) and DRB1, DQB1, and DPB1, and those very similar to the above:
-# H, Y (27% and 11% with A), and 
-# DRB3, DRB5, DRB7, DRB4, DRB2 (50%, 23%, 16%, 9%, and 4% with DRB1)
-#keep <- c('ClassI', 'DRB1', 'DQB1', 'DPB1', 'H', 'Y', 'DRB3', 'DRB5', 'DRB7', 'DRB4', 'DRB2')
-keep <- c('ClassI', 'DRB1', 'DQB1', 'DPB1')
-ignore <- dt[! msa %in% keep, q]
-dt <- dt[msa %in% keep]
-dt[q %in% ignore, specific := 0]
-#dt[q %in% ignore, specific := 0.1]
-#dt[specific == 0, specific := 0.1]
-
+# filter non-specific matching
+#dt <- dt[specific==1 & left==0 & right==0]
+dt <- dt[left==0 & right==0]
+# TODO, filter core exons
 
 #library(IRanges)
 #setkey(dt, t)
@@ -111,8 +110,9 @@ for(g in seq_along(allele.genes)){
 }
 f.dir.bound <- rep(c('>=', '<='), each = n.genes)
 f.rhs.bound <- rep(c( 1,    2  ), each = n.genes)
-#f.rhs.bound[f.rhs.bound == 1 & grepl('^DRB[345]', rep(allele.genes, 2))] <- 0
-#f.rhs.bound[f.rhs.bound == 2 & grepl('^DRB[345]', rep(allele.genes, 2))] <- 1
+f.rhs.bound[f.rhs.bound == 1 & grepl('^DRB[345]', rep(allele.genes, 2))] <- 0
+f.rhs.bound[f.rhs.bound == 2 & grepl('^DRB[345]', rep(allele.genes, 2))] <- 1
+print(data.frame(g = rep(allele.genes, 2), f.dir.bound, f.rhs.bound))
 
 zero.m <- t(matrix(all.zero, nrow = heter, ncol = nr))
 yindex <- matrix(c(1:nr, na + 1:nr), ncol = 2)
