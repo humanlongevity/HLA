@@ -21,14 +21,10 @@ spanned <- dt[ts < shift-1 & te > shift+1]
 
 dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
 
-# only keep Class I (A, B, C) and DRB1, DQB1, and DPB1, and those very similar to the above:
-# H, Y (27% and 11% with A), and 
-# DRB3, DRB5, DRB7, DRB4, DRB2 (50%, 23%, 16%, 9%, and 4% with DRB1)
-keep <- c('ClassI', 'DRB1', 'DQB1', 'DPB1', 'H', 'Y', 'DRB3', 'DRB5', 'DRB7', 'DRB4', 'DRB2')
-#keep <- c('ClassI', 'DRB1', 'DQB1', 'DPB1', 'H', 'Y')
-ignore <- dt[! msa %in% keep, q]
-dt <- dt[msa %in% keep]
-dt[q %in% ignore, specific := 0]
+# only keep Class I (A, B, C) and DRB1, DQB1, and DPB1.
+#ignore <- dt[! msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1'), q]
+#dt <- dt[msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1')]
+#dt[q %in% ignore, specific := 0]
 #dt[q %in% ignore, specific := 0.1]
 #dt[specific == 0, specific := 0.1]
 
@@ -110,9 +106,6 @@ for(g in seq_along(allele.genes)){
 }
 f.dir.bound <- rep(c('>=', '<='), each = n.genes)
 f.rhs.bound <- rep(c( 1,    2  ), each = n.genes)
-f.rhs.bound[f.rhs.bound == 1 & grepl('^DRB[345]', rep(allele.genes, 2))] <- 0
-f.rhs.bound[f.rhs.bound == 2 & grepl('^DRB[345]', rep(allele.genes, 2))] <- 1
-print(data.frame(g = rep(allele.genes, 2), f.dir.bound, f.rhs.bound))
 
 zero.m <- t(matrix(all.zero, nrow = heter, ncol = nr))
 yindex <- matrix(c(1:nr, na + 1:nr), ncol = 2)
@@ -126,9 +119,9 @@ gindex <- matrix(c(1:nr, na + nr + 1:nr), ncol = 2)
 #    con
 #}))
 #)
-f.con.hit <- zero.m
-f.con.hit[yindex] <- -1
-f.con.hit[, 1:na] <- mat
+system.time(f.con.hit <- zero.m)
+system.time(f.con.hit[yindex] <- -1)
+system.time(f.con.hit[, 1:na] <- mat)
 f.dir.hit <- rep('>=', nr)
 f.rhs.hit <- rep(0, nr)
 
