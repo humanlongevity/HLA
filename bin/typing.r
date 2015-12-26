@@ -22,9 +22,9 @@ spanned <- dt[ts < shift-1 & te > shift+1]
 dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
 
 # only keep Class I (A, B, C) and DRB1, DQB1, and DPB1.
-ignore <- dt[! msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1'), q]
-dt <- dt[msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1')]
-dt[q %in% ignore, specific := 0]
+#ignore <- dt[! msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1'), q]
+#dt <- dt[msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1')]
+#dt[q %in% ignore, specific := 0]
 #dt[q %in% ignore, specific := 0.1]
 #dt[specific == 0, specific := 0.1]
 
@@ -176,16 +176,25 @@ get.diff <- function(x, y) {
 	diff.reads <- qs[which(apply(mat[, c(x, y)], 1, diff) != 0)]
 	diff.match <- dt[q %in% diff.reads & type %in% c(solution, x, y)]
 	by.others <- diff.match[!type %in% c(x, y)]
-	if(x == 'C*06:02'){
-		diff.match[, insolution := ifelse(type %in% solution, T, F)]
-		diff.match[, good := F]
-		diff.match[!q %in% by.others$q, good := T]
-	}
 	#return(copy(diff.match))
 	return(copy(diff.match[!q %in% by.others$q]))
 }
 
 max.hit <- sum(apply(mat2[, solution], 1, max))
+empty.df <- data.frame(
+	'rank' = 1,
+	'solution' = '',
+	'missing' = 0,
+	'missing2' = 0,
+	'tier1' = '',
+	'tier2' = '',
+	'tier3' = '',
+	'best.sp' = max.hit,
+	'best.nonsp' = 0,
+	'comp.sp' = 0,
+	'comp.nonsp' = 0,
+	'competitor' = ''
+)
 more <- do.call(rbind, mclapply(solution, function(s){
 	minus1 <- solution[solution != s]
 	minus1.hit <- apply(mat2[, minus1], 1, max)
@@ -193,54 +202,63 @@ more <- do.call(rbind, mclapply(solution, function(s){
     minus2 <- solution[-grep(gene, solution)]
 	minus2.hit <- apply(mat2[, minus2], 1, max)
 	others <- allele.names[grepl(gene, allele.names) & !(allele.names %in% solution)]
+
+	if(length(others) < 1){
+		competition <- empty.df
+		competition$solution = s
+		competition$competitor = s
+		return(competition)
+	}
+
 	other.hit <- sapply(others, function(i) sum(pmax(minus1.hit, mat2[, i])))
 	other.hit2 <- sapply(others, function(i) sum(pmax(minus2.hit, mat2[, i])))
-	cand <- data.frame('competitor' = others, 'missing' = max.hit - other.hit, 'missing2' = max.hit - other.hit2)
-	cand$competitor <- as.character(cand$competitor)
-    cand <- cand[order(cand$missing * 1e8 + cand$missing2), ]
-#	cand <- rbind(data.frame('competitor' = s, 'missing' = 0), cand)
-	cand <- cand[1:30,]
-	cand$rank <- 1:nrow(cand)
+	cand <- data.table('competitor' = as.character(others), 'missing' = max.hit - other.hit, 'missing2' = max.hit - other.hit2)
+    cand <- cand[order(missing * 1e8 + missing2)]
+	cand <- cand[1:min(30, length(others))]
 
 #	ambig <- subset(cand, rank > 1 & missing == 0)$competitor
-	ambig <- subset(cand, missing == 0)$competitor
+	ambig <- cand[missing == 0, competitor]
 	sol <- s
 	if(length(ambig) > 0){
 		bests <- sort(c(s, ambig))
 		x <- as.integer(sub('.+?\\*(\\d+):.+', '\\1', bests))
 		y <- as.integer(sub('.+?\\*\\d+:(\\d+).*', '\\1', bests))
 		bests <- bests[order(x * 1e5 + y)]
-		cand <- subset(cand, !competitor %in% ambig)
+		cand <- cand[!competitor %in% ambig]
 		ambig <- bests[-1]
 		sol <- bests[1]
 		bests <- paste(bests, collapse = ';')
 		ambig <- paste(ambig, collapse = ';')
-		cand$rank <- 1:nrow(cand)
+		cand[, rank := 1:nrow(cand)]
 	}else{
 		ambig = ''
 	}
 
-	competition <- do.call(rbind, lapply(1:nrow(cand), function(i){
-		competitor <- cand[i, 'competitor']
-		diff.match <- get.diff(s, competitor)
+	competition <- do.call(rbind, lapply(cand$competitor, function(comp){
+		diff.match <- get.diff(s, comp)
 		c(
 		  	'rank' = 0,
 		  	'solution' = 0,
-		  	'missing' = cand[i, 'missing'],
-		  	'missing2' = cand[i, 'missing2'],
+		  	'missing' = cand[competitor == comp, missing],
+		  	'missing2' = cand[competitor == comp, missing2],
 			'tier1' = 0,
 		  	'tier2' = 0,
 		  	'tier3' = 0,
 			'best.sp' = nrow(diff.match[type == s & specific == 1]),
 			'best.nonsp' = nrow(diff.match[type == s & specific <  1]),
-			'comp.sp' = nrow(diff.match[type == competitor & specific == 1]),
-			'comp.nonsp' = nrow(diff.match[type == competitor & specific <  1])
+			'comp.sp' = nrow(diff.match[type == comp & specific == 1]),
+			'comp.nonsp' = nrow(diff.match[type == comp & specific <  1])
 		)
 	}))
 	competition <- data.frame(competition)
+	if(nrow(competition) < 1){
+		competition <- empty.df
+		competition$competitor <- s
+	}else{
+		competition$competitor <- cand$competitor
+	}
 	competition$solution <- sol
 	competition$rank <- 1:nrow(competition)
-	competition$competitor <- cand$competitor
 	competition$tier1 <- ambig
 	competition$tier2 <- paste(subset(competition, best.sp == 0)$competitor, collapse = ';')
 	competition$tier3 <- paste(subset(competition, best.sp > 0 & comp.sp > 0 & comp.sp * 5 >= best.sp)$competitor, collapse = ';')
