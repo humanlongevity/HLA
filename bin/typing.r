@@ -37,6 +37,8 @@ nr <- dt[, .(pair2 = length(unique(q))), keyby = .(qp, type)]
 setkey(dt, qp, type)
 dt <- nr[dt]
 dt <- dt[pair1 == pair2]
+specific.pairs <- dt[pair1 == 2 & specific == 1, qp]
+dt[qp %in% specific.pairs, specific := 1]
 
 # filter non-specific matching
 #dt <- dt[specific==1 & left==0 & right==0]
