@@ -24,8 +24,9 @@ dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
 # only keep Class I (A, B, C) and DRB1, DQB1, and DPB1.
 ignore <- dt[! msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1'), q]
 dt <- dt[msa %in% c('ClassI', 'DRB1', 'DQB1', 'DPB1')]
-dt[q %in% ignore, specific := 0.1]
-dt[specific == 0, specific := 0.1]
+dt[q %in% ignore, specific := 0]
+#dt[q %in% ignore, specific := 0.1]
+#dt[specific == 0, specific := 0.1]
 
 # filter pair end matches
 dt[, qp := sub('/\\d$', '', q)]
