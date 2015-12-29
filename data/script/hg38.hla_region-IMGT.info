@@ -1,0 +1,313 @@
+    chrom    start      end                   GENE
+ 1:  chr6 26087440 26087518                   IMGT
+ 2:  chr6 26090840 26091104                   IMGT
+ 3:  chr6 26091312 26091589                   IMGT
+ 4:  chr6 26092680 26092960                   IMGT
+ 5:  chr6 26093117 26093233                   IMGT
+ 6:  chr6 29723339 29727296             HLA-F,IMGT
+> check(6)
+     [,1]  [,2]
+F     324     6
+J       2   133
+C       2 26873
+A       1 31804
+B       1 39783
+
+ 7:  chr6 29744265 29744338                   IMGT
+MICA   10  1340
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+
+ 8:  chr6 29745471 29745572                   IMGT
+MICB    3   578
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+
+ 9:  chr6 29790954 29797811             HLA-V,IMGT
+     [,1]  [,2]
+B      97 39687
+V      22     0
+C       1 26874
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+
+10:  chr6 29800415 29802425                  HLA-P
+> check(10)
+     [,1]  [,2]
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+DRB7    0    14
+DRB6    0    18
+
+
+11:  chr6 29826978 29831122             HLA-G,IMGT
+     [,1]  [,2]
+G     627     0
+C       4 26871
+A       3 31802
+B       2 39782
+H       1   179
+DRB9    0     4
+DRB8    0     6
+
+12:  chr6 29887751 29891080             HLA-H,IMGT
+> check(12)
+     [,1]  [,2]
+B    5670 34114
+A    1835 29970
+C     336 26539
+H     166    14
+J       2   133
+DRB9    0     4
+
+13:  chr6 29926458 29929233             HLA-K,IMGT
+> check(13)
+     [,1]  [,2]
+C     618 26257
+K      86     4
+A      17 31788
+B       1 39783
+DRB9    0     4
+
+14:  chr6 29934103 29934281                   IMGT
+> check(14)
+     [,1]  [,2]
+C       4 26871
+A       4 31801
+B       1 39783
+DRB9    0     4
+DRB8    0     6
+
+15:  chr6 29942469 29945884             HLA-A,IMGT
+> check(15)
+      [,1]  [,2]
+A    24800  7005
+C      779 26096
+B      628 39156
+H       11   169
+DRB9     0     4
+DRB8     0     6
+
+16:  chr6 29957382 29957492                   IMGT
+> check(16)
+     [,1]  [,2]
+A       4 31801
+H       1   179
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+
+17:  chr6 30005970 30009956             HLA-J,IMGT
+     [,1]  [,2]
+B     545 39239
+J     131     4
+A      13 31792
+C       5 26870
+H       1   179
+DRB9    0     4
+
+18:  chr6 30259561 30266951             HLA-L,IMGT
+> check(18)
+     [,1]  [,2]
+A      81 31724
+L      74     1
+C       4 26871
+B       3 39781
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+
+19:  chr6 30489405 30494205             HLA-E,IMGT
+E     235     0
+A     221 31584
+C       2 26873
+B       1 39783
+DRB9    0     4
+DRB8    0     6
+
+20:  chr6 31268748 31272136             HLA-C,IMGT
+> check(20)
+      [,1]  [,2]
+C    18410  8465
+B     4268 35516
+A       39 31766
+DRB9     0     4
+DRB8     0     6
+DRB2     0     7
+
+21:  chr6 31353871 31357212             HLA-B,IMGT
+> check(21)
+      [,1]  [,2]
+B    25175 14609
+C     4486 22389
+A     1484 30321
+DRB9     0     4
+DRB8     0     6
+
+
+22:  chr6 31399783 31415316              IMGT,MICA
+     [,1]  [,2]
+MICA 1319    31
+MICB   26   555
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+DRB7    0    14
+
+23:  chr6 31494880 31511124              IMGT,MICB
+     [,1]  [,2]
+MICB  552    29
+MICA    9  1341
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+DRB7    0    14
+
+24:  chr6 32439841 32445051           HLA-DRA,IMGT
+DRA    76     0
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+
+25:  chr6 32459819 32473500          HLA-DRB9,IMGT
+DRB9    4     0
+DRB8    0     6
+DRB2    0     7
+
+26:  chr6 32517376 32530229          HLA-DRB5,IMGT
+     [,1]  [,2]
+DRB1 3209  5461
+DRB5  108    20
+DRB3   97   230
+DRB4   45    82
+DRB7    2    12
+DQB1    1  5023
+DRB9    0     4
+DRB8    0     6
+
+27:  chr6 32552712 32560002          HLA-DRB6,IMGT
+DRB1   30  8640
+DRB4   23   104
+DRB6   16     2
+DRB3    3   324
+DRB8    1     5
+DRB2    1     6
+DRB9    0     4
+DRB7    0    14
+
+
+28:  chr6 32578769 32589836          HLA-DRB1,IMGT
+DRB1 4431  4239
+DRB3   99   228
+DRB4   38    89
+DRB5   19   109
+DRB7    8     6
+DQB1    6  5018
+DRB8    4     2
+DRB2    2     5
+DRB6    1    17
+DRB9    0     4
+V       0    22
+DMA     0    63
+
+29:  chr6 32637405 32643652          HLA-DQA1,IMGT
+DQA1  341   189
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+
+30:  chr6 32659463 32666689          HLA-DQB1,IMGT
+DQB1 2442  2582
+DRB1  220  8450
+DRB3   19   308
+DRB9    0     4
+
+31:  chr6 32741443 32741525                   IMGT
+DQA1    5   525
+DRB9    0     4
+DRB8    0     6
+
+32:  chr6 32745158 32745357                   IMGT
+DQA1    7   523
+DRB9    0     4
+DRB8    0     6
+
+33:  chr6 32745789 32746072                   IMGT
+DQA1   60   470
+DRB9    0     4
+DRB8    0     6
+
+34:  chr6 32757771 32757883                   IMGT
+DQB1  208  4816
+DRB9    0     4
+DRB8    0     6
+
+35:  chr6 32758877 32759133                   IMGT
+DQB1  229  4795
+DRB9    0     4
+DRB8    0     6
+
+36:  chr6 32812762 32817048           HLA-DOB,IMGT
+DOB   143     0
+DRB9    0     4
+DRB8    0     6
+
+37:  chr6 32821832 32838823              IMGT,TAP2
+TAP2  341     1
+DRB9    0     4
+DRB8    0     6
+
+38:  chr6 32845208 32853971              IMGT,TAP1
+TAP1  360     0
+TAP2    1   341
+DRB9    0     4
+DRB8    0     6
+
+39:  chr6 32934628 32941070           HLA-DMB,IMGT
+DMB   123     0
+DRB9    0     4
+DRB8    0     6
+
+40:  chr6 32948613 32953122           HLA-DMA,IMGT
+DMA    63     0
+DRB9    0     4
+DRB8    0     6
+
+41:  chr6 33004182 33009612           HLA-DOA,IMGT
+DOA   128     0
+DRB9    0     4
+DRB8    0     6
+
+42:  chr6 33064568 33089696 HLA-DPA1,HLA-DPB1,IMGT
+DPB1 2595   202
+DPA1  252    10
+DQB1   74  4950
+DRB1    5  8665
+DRB9    0     4
+
+43:  chr6 33064568 33075926               HLA-DPA1
+> check(43)
+     [,1]  [,2]
+DPA1  252    10
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+DRB7    0    14
+
+44:  chr6 33075925 33089696               HLA-DPB1
+> check(44)
+     [,1]  [,2]
+DPB1 2595   202
+DQB1   74  4950
+DRB1    5  8665
+DRB9    0     4
+DRB8    0     6
+DRB2    0     7
+
+
+    chrom    start      end                   GENE
+
