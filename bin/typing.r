@@ -210,14 +210,8 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	gene <- sub('(.+?)\\*.+', '^\\1', s)
     minus2 <- solution[-grep(gene, solution)]
 	minus2.hit <- apply(mat2[, minus2], 1, max)
-	others <- allele.names[grepl(gene, allele.names) & !(allele.names %in% solution)]
-
-	if(length(others) < 1){
-		competition <- empty.df
-		competition$solution = s
-		competition$competitor = s
-		return(competition)
-	}
+#	others <- allele.names[grepl(gene, allele.names) & !(allele.names %in% solution)]
+	others <- allele.names[grepl(gene, allele.names)]
 
 	other.hit <- sapply(others, function(i) sum(pmax(minus1.hit, mat2[, i])))
 	other.hit2 <- sapply(others, function(i) sum(pmax(minus2.hit, mat2[, i])))
@@ -225,22 +219,16 @@ more <- do.call(rbind, mclapply(solution, function(s){
     cand <- cand[order(missing * 1e8 + missing2)]
 	cand <- cand[1:min(30, length(others))]
 
-#	ambig <- subset(cand, rank > 1 & missing == 0)$competitor
-	ambig <- cand[missing == 0, competitor]
+	ambig <- unique(cand[missing == 0, competitor])
 	sol <- s
 	if(length(ambig) > 0){
-		bests <- sort(c(s, ambig))
+		bests <- sort(ambig)
 		x <- as.integer(sub('.+?\\*(\\d+):.+', '\\1', bests))
 		y <- as.integer(sub('.+?\\*\\d+:(\\d+).*', '\\1', bests))
 		bests <- bests[order(x * 1e5 + y)]
-		cand <- cand[!competitor %in% ambig]
 		ambig <- bests[-1]
 		sol <- bests[1]
-		bests <- paste(bests, collapse = ';')
-		ambig <- paste(ambig, collapse = ';')
 		cand[, rank := 1:nrow(cand)]
-	}else{
-		ambig = ''
 	}
 
 	competition <- do.call(rbind, lapply(cand$competitor, function(comp){
@@ -260,16 +248,12 @@ more <- do.call(rbind, mclapply(solution, function(s){
 		)
 	}))
 	competition <- data.frame(competition)
-	if(nrow(competition) < 1){
-		competition <- empty.df
-		competition$competitor <- s
-	}else{
-		competition$competitor <- cand$competitor
-	}
+	competition$competitor <- cand$competitor
 	competition$solution <- sol
+	competition <- subset(competition, solution != competitor)
 	competition$rank <- 1:nrow(competition)
-	competition$tier1 <- ambig
-	competition$tier2 <- paste(subset(competition, best.sp == 0)$competitor, collapse = ';')
+	competition$tier1 <- paste(ambig, collapse = ';')
+	competition$tier2 <- paste(subset(competition, best.sp == 0 & best.nonsp > 0)$competitor, collapse = ';')
 	competition$tier3 <- paste(subset(competition, best.sp > 0 & comp.sp > 0 & comp.sp * 5 >= best.sp)$competitor, collapse = ';')
 
 	competition
@@ -289,4 +273,4 @@ more <- more[order(rank)]
 print(more[rank == 1])
 write.table(more, row = F, col = F, sep = '\t', quo = F, file = args[2])
 
-save.image(file = sprintf('%s.temp.rda', args[2]))
+#save.image(file = sprintf('%s.temp.rda', args[2]))
