@@ -204,19 +204,16 @@ empty.df <- data.frame(
 	'comp.nonsp' = 0,
 	'competitor' = ''
 )
+
+print(get.diff('DRB1*14:01', 'DRB1*14:54'))
 more <- do.call(rbind, mclapply(solution, function(s){
 	minus1 <- solution[solution != s]
 	minus1.hit <- apply(mat2[, minus1], 1, max)
 	gene <- sub('(.+?)\\*.+', '^\\1', s)
-    minus2 <- solution[-grep(gene, solution)]
-	minus2.hit <- apply(mat2[, minus2], 1, max)
-#	others <- allele.names[grepl(gene, allele.names) & !(allele.names %in% solution)]
 	others <- allele.names[grepl(gene, allele.names)]
-
 	other.hit <- sapply(others, function(i) sum(pmax(minus1.hit, mat2[, i])))
-	other.hit2 <- sapply(others, function(i) sum(pmax(minus2.hit, mat2[, i])))
-	cand <- data.table('competitor' = as.character(others), 'missing' = max.hit - other.hit, 'missing2' = max.hit - other.hit2)
-    cand <- cand[order(missing * 1e8 + missing2)]
+	cand <- data.table('competitor' = as.character(others), 'missing' = max.hit - other.hit)
+    cand <- cand[order(missing)]
 	cand <- cand[1:min(30, length(others))]
 
 	ambig <- unique(cand[missing == 0, competitor])
@@ -236,8 +233,12 @@ more <- do.call(rbind, mclapply(solution, function(s){
 		c(
 		  	'rank' = 0,
 		  	'solution' = 0,
+		  	'my.total' = 0,
+		  	'comp.total' = 0,
+		  	'my.alone' = 0,
+		  	'comp.alone' = 0,
 		  	'missing' = cand[competitor == comp, missing],
-		  	'missing2' = cand[competitor == comp, missing2],
+		  	'missing2' = 0,
 			'tier1' = 0,
 		  	'tier2' = 0,
 		  	'tier3' = 0,
@@ -250,7 +251,9 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	competition <- data.frame(competition)
 	competition$competitor <- cand$competitor
 	competition$solution <- sol
-	competition <- subset(competition, solution != competitor)
+#	if(length(others) > 1){
+#		competition <- subset(competition, solution != competitor)
+#	}
 	competition$rank <- 1:nrow(competition)
 	competition$tier1 <- paste(ambig, collapse = ';')
 	competition$tier2 <- paste(subset(competition, best.sp == 0 & best.nonsp > 0)$competitor, collapse = ';')
@@ -259,6 +262,32 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	competition
 }))
 more <- data.table(more)
+more[, solution := as.character(solution)]
+more[, competitor := as.character(competitor)]
+solution <- more[rank == 1, solution]
+max.hit <- sum(apply(mat2[, solution], 1, max))
+hit.counts <- do.call(rbind, mclapply(1:nrow(more), function(x){
+	sol <- more[x, solution]
+	comp <- more[x, competitor]
+	minus1 <- solution[solution != sol]
+	minus1.hit <- apply(mat2[, minus1], 1, max)
+	my.total <- sum(mat2[, sol])
+	comp.total <- sum(mat2[, comp])
+	my.alone <- sum(mat2[minus1.hit == 0, sol])
+	comp.alone <- sum(mat2[minus1.hit == 0, comp])
+	gene <- sub('\\*.+', '', sol)
+    minus2 <- solution[-grep(gene, solution)]
+	minus2.hit <- apply(mat2[, minus2], 1, max)
+	other2.hit <- sum(pmax(minus2.hit, mat2[, comp]))
+	missing2 <- max.hit - other2.hit
+	c(my.total, comp.total, my.alone, comp.alone, missing2)
+}))
+more[, my.total := hit.counts[, 1]]
+more[, comp.total := hit.counts[, 2]]
+more[, my.alone := hit.counts[, 3]]
+more[, comp.alone := hit.counts[, 4]]
+more[, missing2 := hit.counts[, 5]]
+#    cand <- cand[order(missing * 1e8 + missing2)]
 
 important <- function(sol){
 	sol <- sub(';.+', '', as.character(sol))
@@ -273,4 +302,19 @@ more <- more[order(rank)]
 print(more[rank == 1])
 write.table(more, row = F, col = F, sep = '\t', quo = F, file = args[2])
 
+print(get.diff('DRB1*14:01', 'DRB1*14:54'))
+key.reads <- c("H5KCYCCXX:3:7:1668619:0",
+			   "H5KCYCCXX:5:5:2497733:0",
+			   "H5KCYCCXX:5:8:867334:0",
+			   "H5KCYCCXX:6:15:2497894:0",
+			   "H5KCYCCXX:6:18:1984327:0",
+			   "H5KCYCCXX:6:9:1677770:0",
+			   "H5KCYCCXX:6:9:1677770:0",
+			   "H5KCYCCXX:6:9:2008665:0",
+			   "H5KCYCCXX:6:9:4137533:0",
+			   "H5KCYCCXX:8:9:3279885:0",
+			   "H5KCYCCXX:8:9:3279885:0")
+key.match <- dt[qp %in% key.reads & type %in% c(more[rank == 1, solution], 'DRB1*14:01', 'DRB1*14:54')]
+print(key.match)
+save(key.match, file = 'temp.rda')
 #save.image(file = sprintf('%s.temp.rda', args[2]))
