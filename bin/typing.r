@@ -205,7 +205,6 @@ empty.df <- data.frame(
 	'competitor' = ''
 )
 
-print(get.diff('DRB1*14:01', 'DRB1*14:54'))
 more <- do.call(rbind, mclapply(solution, function(s){
 	minus1 <- solution[solution != s]
 	minus1.hit <- apply(mat2[, minus1], 1, max)
@@ -223,6 +222,8 @@ more <- do.call(rbind, mclapply(solution, function(s){
 		x <- as.integer(sub('.+?\\*(\\d+):.+', '\\1', bests))
 		y <- as.integer(sub('.+?\\*\\d+:(\\d+).*', '\\1', bests))
 		bests <- bests[order(x * 1e5 + y)]
+		total <- sapply(bests, function(sol) sum(mat2[, sol]))
+		bests <- bests[order(-total)]
 		ambig <- bests[-1]
 		sol <- bests[1]
 		cand[, rank := 1:nrow(cand)]
@@ -302,19 +303,19 @@ more <- more[order(rank)]
 print(more[rank == 1])
 write.table(more, row = F, col = F, sep = '\t', quo = F, file = args[2])
 
-print(get.diff('DRB1*14:01', 'DRB1*14:54'))
-key.reads <- c("H5KCYCCXX:3:7:1668619:0",
-			   "H5KCYCCXX:5:5:2497733:0",
-			   "H5KCYCCXX:5:8:867334:0",
-			   "H5KCYCCXX:6:15:2497894:0",
-			   "H5KCYCCXX:6:18:1984327:0",
-			   "H5KCYCCXX:6:9:1677770:0",
-			   "H5KCYCCXX:6:9:1677770:0",
-			   "H5KCYCCXX:6:9:2008665:0",
-			   "H5KCYCCXX:6:9:4137533:0",
-			   "H5KCYCCXX:8:9:3279885:0",
-			   "H5KCYCCXX:8:9:3279885:0")
-key.match <- dt[qp %in% key.reads & type %in% c(more[rank == 1, solution], 'DRB1*14:01', 'DRB1*14:54')]
-print(key.match)
-save(key.match, file = 'temp.rda')
+#print(get.diff('DRB1*14:01', 'DRB1*14:54'))
+#key.reads <- c("H5KCYCCXX:3:7:1668619:0",
+#			   "H5KCYCCXX:5:5:2497733:0",
+#			   "H5KCYCCXX:5:8:867334:0",
+#			   "H5KCYCCXX:6:15:2497894:0",
+#			   "H5KCYCCXX:6:18:1984327:0",
+#			   "H5KCYCCXX:6:9:1677770:0",
+#			   "H5KCYCCXX:6:9:1677770:0",
+#			   "H5KCYCCXX:6:9:2008665:0",
+#			   "H5KCYCCXX:6:9:4137533:0",
+#			   "H5KCYCCXX:8:9:3279885:0",
+#			   "H5KCYCCXX:8:9:3279885:0")
+#key.match <- dt[type %in% c(more[rank == 1, solution], 'DRB1*14:01', 'DRB1*14:54')]
+#print(key.match)
+#save(key.match, file = 'temp.rda')
 #save.image(file = sprintf('%s.temp.rda', args[2]))
