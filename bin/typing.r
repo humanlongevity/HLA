@@ -213,7 +213,7 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	other.hit <- sapply(others, function(i) sum(pmax(minus1.hit, mat2[, i])))
 	cand <- data.table('competitor' = as.character(others), 'missing' = max.hit - other.hit)
     cand <- cand[order(missing)]
-	cand <- cand[1:min(30, length(others))]
+	cand <- cand[1:min(50, length(others))]
 
 	ambig <- cand[missing <= 1, competitor]
 	missing <- cand[missing <= 1, missing]
@@ -233,7 +233,7 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	}
 
 	competition <- do.call(rbind, lapply(cand$competitor, function(comp){
-		diff.match <- get.diff(s, comp)
+		diff.match <- get.diff(sol, comp)
 		c(
 		  	'rank' = 0,
 		  	'solution' = 0,
@@ -275,6 +275,8 @@ hit.counts <- do.call(rbind, mclapply(1:nrow(more), function(x){
 	comp <- more[x, competitor]
 	minus1 <- solution[solution != sol]
 	minus1.hit <- apply(mat2[, minus1], 1, max)
+	other1.hit <- sum(pmax(minus1.hit, mat2[, comp]))
+	missing1 <- max.hit - other1.hit
 	my.total <- sum(mat2[, sol])
 	comp.total <- sum(mat2[, comp])
 	my.alone <- sum(mat2[minus1.hit == 0, sol])
@@ -284,13 +286,14 @@ hit.counts <- do.call(rbind, mclapply(1:nrow(more), function(x){
 	minus2.hit <- apply(mat2[, minus2], 1, max)
 	other2.hit <- sum(pmax(minus2.hit, mat2[, comp]))
 	missing2 <- max.hit - other2.hit
-	c(my.total, comp.total, my.alone, comp.alone, missing2)
+	c(my.total, comp.total, my.alone, comp.alone, missing1, missing2)
 }))
 more[, my.total := hit.counts[, 1]]
 more[, comp.total := hit.counts[, 2]]
 more[, my.alone := hit.counts[, 3]]
 more[, comp.alone := hit.counts[, 4]]
-more[, missing2 := hit.counts[, 5]]
+more[, missing := hit.counts[, 5]]
+more[, missing2 := hit.counts[, 6]]
 #    cand <- cand[order(missing * 1e8 + missing2)]
 
 important <- function(sol){
@@ -306,19 +309,7 @@ more <- more[order(rank)]
 print(more[rank == 1])
 write.table(more, row = F, col = F, sep = '\t', quo = F, file = args[2])
 
-#print(get.diff('DRB1*14:01', 'DRB1*14:54'))
-#key.reads <- c("H5KCYCCXX:3:7:1668619:0",
-#			   "H5KCYCCXX:5:5:2497733:0",
-#			   "H5KCYCCXX:5:8:867334:0",
-#			   "H5KCYCCXX:6:15:2497894:0",
-#			   "H5KCYCCXX:6:18:1984327:0",
-#			   "H5KCYCCXX:6:9:1677770:0",
-#			   "H5KCYCCXX:6:9:1677770:0",
-#			   "H5KCYCCXX:6:9:2008665:0",
-#			   "H5KCYCCXX:6:9:4137533:0",
-#			   "H5KCYCCXX:8:9:3279885:0",
-#			   "H5KCYCCXX:8:9:3279885:0")
-#key.match <- dt[type %in% c(more[rank == 1, solution], 'DRB1*14:01', 'DRB1*14:54')]
-#print(key.match)
+#print(get.diff('A*01:01', 'A*01:04N'))
+#key.match <- dt[type %in% c(more[rank == 1, solution], 'A*01:01', 'A*11:01', 'A*11:124')]
 #save(key.match, file = 'temp.rda')
 #save.image(file = sprintf('%s.temp.rda', args[2]))
