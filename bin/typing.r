@@ -215,7 +215,9 @@ more <- do.call(rbind, mclapply(solution, function(s){
     cand <- cand[order(missing)]
 	cand <- cand[1:min(30, length(others))]
 
-	ambig <- unique(cand[missing == 0, competitor])
+	ambig <- cand[missing <= 1, competitor]
+	missing <- cand[missing <= 1, missing]
+	names(missing) <- ambig
 	sol <- s
 	if(length(ambig) > 0){
 		bests <- sort(ambig)
@@ -223,7 +225,8 @@ more <- do.call(rbind, mclapply(solution, function(s){
 		y <- as.integer(sub('.+?\\*\\d+:(\\d+).*', '\\1', bests))
 		bests <- bests[order(x * 1e5 + y)]
 		total <- sapply(bests, function(sol) sum(mat2[, sol]))
-		bests <- bests[order(-total)]
+		missing <- missing[bests]
+		bests <- bests[order(missing * 5 - total)]
 		ambig <- bests[-1]
 		sol <- bests[1]
 		cand[, rank := 1:nrow(cand)]
