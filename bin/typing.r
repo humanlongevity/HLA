@@ -215,8 +215,8 @@ more <- do.call(rbind, mclapply(solution, function(s){
     cand <- cand[order(missing)]
 	cand <- cand[1:min(50, length(others))]
 
-	ambig <- cand[missing <= 1, competitor]
-	missing <- cand[missing <= 1, missing]
+	ambig <- cand[missing <= 2, competitor]
+	missing <- cand[missing <= 2, missing]
 	names(missing) <- ambig
 	sol <- s
 	if(length(ambig) > 0){
@@ -310,6 +310,6 @@ print(more[rank == 1])
 write.table(more, row = F, col = F, sep = '\t', quo = F, file = args[2])
 
 #print(get.diff('A*01:01', 'A*01:04N'))
-#key.match <- dt[type %in% c(more[rank == 1, solution], 'A*01:01', 'A*11:01', 'A*11:124')]
+#key.match <- dt[type %in% c(more[rank == 1, solution], 'A*01:01', 'A*11:01', 'DRB1*14:01', 'DRB1*14:54')]
 #save(key.match, file = 'temp.rda')
 #save.image(file = sprintf('%s.temp.rda', args[2]))
