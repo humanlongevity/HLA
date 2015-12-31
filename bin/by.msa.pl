@@ -60,20 +60,24 @@ print STDERR "found ", scalar(keys %tseq), " HLA exons\n";
 
 print STDERR "processing DAA file\n";
 open(IN, "diamond view -a '$daa_file' -o /dev/stdout |") or die $!;
+my %mLEN;
 my %mlen;
 my %match;
 my %matched;
 my %nonspec;
 while(<IN>)
 {
-	my ($q, $target, $identity, $len, $mis, $gap, $qs, $qe, $ts, $te, $e, $score) = split(/\t/, $_);
+	my ($qu, $target, $identity, $len, $mis, $gap, $qs, $qe, $ts, $te, $e, $score) = split(/\t/, $_);
 	next unless $identity == 100;
+	my $q = "$qu==$qs-$qe";
 	my $len = $te - $ts + 1;
 	my $g = $is_gene{$target};
-	if($len > $mlen{$g}->{$q})
+#	if($len > $mlen{$g}->{$q})
+	if($len >= $mLEN{$qu})
 	{
+		$mLEN{$qu} = $len;
 		$mlen{$g}->{$q} = $len;
-		$match{$g}->{$q} = [$target, $qs, $qe, $ts, $te];
+		$match{$g}->{$q} = [$target, $qs, $qe, $ts, $te, $len];
 		print STDERR "\t$target\n" unless $matched{$target};
 	}
 	$matched{$target}++ if $len >= $mlen{$g}->{$q};
@@ -84,24 +88,28 @@ print STDERR scalar(keys %nonspec), " reads matched to HLA types not in the MSA 
 
 print STDERR "translating matches to MSA\n";
 my %done;
+my %done2;
+my %save;
 for my $g(keys %match)
 {
 	print STDERR "\t$g\n";
 	for my $q(keys %{$match{$g}})
 	{
 		print STDERR "\t\t$q\n";
-		my ($target, $qs, $qe, $ts, $te) = @{$match{$g}->{$q}};
+		my ($target, $qs, $qe, $ts, $te, $mlen) = @{$match{$g}->{$q}};
+		my $qu = $1 if $q =~ m/(.+)==.+?/;
+		next if $mlen < $mLEN{$qu};
 		my $spe = $nonspec{$q} ? 0 : 1;
-		print STDERR "\t\t\t$q($qlen{$q}):$qs-$qe vs $target($tlen{$target}):$ts-$te\n";
+		print STDERR "\t\t\t$qu($qlen{$qu}):$qs-$qe vs $target($tlen{$target}):$ts-$te\n";
 
-		my $qseq = $qseq{$q};
+		my $qseq = $qseq{$qu};
 		if($qs > $qe)
 		{
 			$qseq =~ tr/ATGC/TACG/;
 			$qseq = reverse $qseq;
 			print STDERR "\t\t\t\tflipping $qs-$qe to";
-			$qs = $qlen{$q} - $qs + 1;
-			$qe = $qlen{$q} - $qe + 1;
+			$qs = $qlen{$qu} - $qs + 1;
+			$qe = $qlen{$qu} - $qe + 1;
 			print STDERR " $qs-$qe\n";
 		}
 		my $mseq = translate($qseq, $qs, $qe);
@@ -124,12 +132,21 @@ for my $g(keys %match)
 
 		my $tag = "$g-$pre2-$pre1-$mseq-$suf1-$suf2";
 		print STDERR "\t\t\t\ttag code: $tag\n";
-		next if $done{$tag};
-		$done{$tag} = 1;
+		next if $done{$tag.$qu};
+		$done{$tag.$qu} = 1;
 		print STDERR "\t\t\t\ttag not processed yet\n";
 
+		if($save{$tag})
+		{
+			for my $k(keys %{$save{$tag}})
+			{
+				print "$qu\t$qlen{$qu}:$qs-$qe\t$k";
+			}
+			next;
+		}
+
 		my $left = min(int(($qs-1)/3), $ts-1);
-		my $right = min(int(($qlen{$q}-$qe)/3), $tlen{$target} - $te);
+		my $right = min(int(($qlen{$qu}-$qe)/3), $tlen{$target} - $te);
 
 		my $start = 0;
 		my $end = 0;
@@ -163,6 +180,7 @@ for my $g(keys %match)
 			print STDERR "\t\t\t\t\tcomparing with $t\n";
 			next unless $matched{$t};
 			print STDERR "\t\t\t\t\tsaw this before ($matched{$t} times)\n";
+			next if $done2{$qu}->{$t};
 			my $comp = substr($tseq{$t}, $start, $tlen);
 			next unless $comp eq $tseq;
 			print STDERR "\t\t\t\t\tsequence matched\n";
@@ -190,8 +208,10 @@ for my $g(keys %match)
 				next if $suf2 && $suf{$t} ne $suf2;
 				$suf = $suf2;
 			}
+			$done2{$qu}->{$t} = 1;
 			print STDERR "\t\t\t\t\tsuffix matched ($suf{$t} vs $suf)\n" if $pre_len;
-			print "$q\t$qlen{$q}:$qs-$qe\t$t\t$tlen{$t}\t$ts\t$te\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n";
+			print "$qu\t$qlen{$qu}:$qs-$qe\t$t\t$tlen{$t}\t$ts\t$te\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n";
+			$save{$tag}->{"$t\t$tlen{$t}\t$ts\t$te\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n"} = 1;
 		}
 	}
 }
