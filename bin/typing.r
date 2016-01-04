@@ -11,15 +11,19 @@ dt <- dt[mis == 0]
 
 # for HLA alleles with frame shift variants, we require reads span over the frame shift site
 frame.shift <- fread('data/hla.shift')
-setnames(frame.shift, c('t', 'exon', 'shift'))
+setnames(frame.shift, c('t', 'EXON', 'shift'))
 frame.shift[, type := sub('-E.+', '', t)]
+frame.shift[, MSA := sub('\\*.+', '', t)]
+frame.shift[, MSA := ifelse(MSA %in% c('A', 'B', 'C'), 'ClassI', MSA)]
+setkey(dt, msa, exon, ts)
+frame.shift[, mapped := dt[msa == MSA & exon == EXON & ts < shift-1 & te > shift+1, .N], by = .(MSA, EXON, shift)]
+frame.shift <- frame.shift[mapped > 0]
 frame.shift[, t := NULL]
-setkey(frame.shift, type, exon)
+setkey(frame.shift, type, EXON)
 frame.shift <- unique(frame.shift)
 setkey(dt, type, exon)
 dt <- frame.shift[dt]
 spanned <- dt[ts < shift-1 & te > shift+1]
-
 dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
 
 # filter non-specific matching
@@ -310,7 +314,8 @@ more <- more[order(rank)]
 print(more[rank == 1])
 write.table(more, row = F, col = F, sep = '\t', quo = F, file = args[2])
 
-#print(get.diff('A*01:01', 'A*01:04N'))
-#key.match <- dt[type %in% c(more[rank == 1, solution], 'A*01:01', 'A*11:01', 'DRB1*14:01', 'DRB1*14:54')]
+#wrong <- c('C*04:01', 'C*01:09N')
+#print(get.diff(wrong[1], wrong[2]))
+#key.match <- dt[type %in% c(more[rank == 1, solution], wrong)]
 #save(key.match, file = 'temp.rda')
 #save.image(file = sprintf('%s.temp.rda', args[2]))
