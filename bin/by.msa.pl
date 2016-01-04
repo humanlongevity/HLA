@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 use strict;
 use List::Util qw(min);
+use Text::Levenshtein::XS qw/distance/;
 
 die "usage: $0 fastq msa daa\n" unless $#ARGV == 2;
 my $fastq_file = shift;
@@ -86,6 +87,15 @@ while(<IN>)
 print STDERR "matched to ", scalar(keys %matched), " HLA exons\n";
 print STDERR scalar(keys %nonspec), " reads matched to HLA types not in the MSA file\n";
 
+my %dna;
+$msa_file =~ s/\.tsv$/\.fna/;
+open(IN, $msa_file) or die $!;
+while(<IN>)
+{
+	my @a = split(/\t/, $_);
+	$dna{$a[0]}->{$a[2]} = 1 if $matched{$a[0]};
+}
+
 print STDERR "translating matches to MSA\n";
 my %done;
 my %done2;
@@ -102,6 +112,7 @@ for my $g(keys %match)
 		my $spe = $nonspec{$q} ? 0 : 1;
 		print STDERR "\t\t\t$qu($qlen{$qu}):$qs-$qe vs $target($tlen{$target}):$ts-$te\n";
 
+		my $qpart = "$qlen{$qu}:$qs-$qe";
 		my $qseq = $qseq{$qu};
 		if($qs > $qe)
 		{
@@ -113,6 +124,7 @@ for my $g(keys %match)
 			print STDERR " $qs-$qe\n";
 		}
 		my $mseq = translate($qseq, $qs, $qe);
+		my $qcode = substr($qseq, $qs-1, $qe-$qs+1);
 
 		my ($pre1, $pre2, $suf1, $suf2);
 		if($ts == 1)
@@ -130,7 +142,7 @@ for my $g(keys %match)
 		print STDERR "\t\t\t\tchecking prefix or suffix leftover on the query:\n";
 		print STDERR "\t\t\t\t\tpre1=$pre1, pre2=$pre2, suf1=$suf1, suf2=$suf2\n";
 
-		my $tag = "$g-$pre2-$pre1-$mseq-$suf1-$suf2";
+		my $tag = "$g-$pre2-$pre1-$qcode-$suf1-$suf2";
 		print STDERR "\t\t\t\ttag code: $tag\n";
 		next if $done{$tag.$qu};
 		$done{$tag.$qu} = 1;
@@ -140,7 +152,7 @@ for my $g(keys %match)
 		{
 			for my $k(keys %{$save{$tag}})
 			{
-				print "$qu\t$qlen{$qu}:$qs-$qe\t$k";
+				print "$qu\t$qpart\t$qlen{$qu}:$qs-$qe\t$k";
 			}
 			next;
 		}
@@ -210,8 +222,18 @@ for my $g(keys %match)
 			}
 			$done2{$qu}->{$t} = 1;
 			print STDERR "\t\t\t\t\tsuffix matched ($suf{$t} vs $suf)\n" if $pre_len;
-			print "$qu\t$qlen{$qu}:$qs-$qe\t$t\t$tlen{$t}\t$ts\t$te\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n";
-			$save{$tag}->{"$t\t$tlen{$t}\t$ts\t$te\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n"} = 1;
+			my $dist = 1000;
+			print STDERR "\t\t\t\t\tcomparing DNA sequence (qcode = $qcode)\n";
+			for my $tcode(keys %{$dna{$t}})
+			{
+				my $tt = substr($tcode, ($ts-1)*3, ($te-$ts+1)*3);
+#				print STDERR "\t\t\t\t\t\t$tt = substr($tcode, ($ts-1)*3, ($te-$ts+1)*3);\n";
+				my $edit = distance($qcode, $tt);
+#				print STDERR "\t\t\t\t\t\tedit = $edit\n";
+				$dist = $edit if $edit < $dist;
+			}
+			print "$qu\t$qpart\t$qlen{$qu}:$qs-$qe\t$t\t$tlen{$t}\t$ts\t$te\t$dist\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n";
+			$save{$tag}->{"$t\t$tlen{$t}\t$ts\t$te\t$dist\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n"} = 1;
 		}
 	}
 }

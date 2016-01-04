@@ -1,8 +1,8 @@
 #!/usr/bin/env perl
 use strict;
 
-die "usage: $0 nuc_align.msa out.frame_shift out.faa\n" unless $#ARGV == 2;
-my ($msa_file, $out_shift, $out_faa) = @ARGV;
+die "usage: $0 nuc_align.msa out.frame_shift out.faa out.fna\n" unless $#ARGV == 3;
+my ($msa_file, $out_shift, $out_faa, $out_fna) = @ARGV;
 
 my %codon = (
   TTT => "F", TTC => "F", TTA => "L", TTG => "L",
@@ -25,6 +25,7 @@ my %codon = (
 
 open IN, $msa_file or die $!;
 my %seq;
+my %dna;
 my %shift;
 while(<IN>)
 {
@@ -63,9 +64,11 @@ while(<IN>)
 
 		my @codons = split(/ /, $exon);
 		my $prot;
+		my $dna;
 		for my $co(@codons)
 		{
 			last if $co =~ m/\*/;
+			$dna .= $co;
 			my $aa = $codon{$co};
 			$prot .= $aa;
 #			last if $aa eq 'X';
@@ -75,6 +78,7 @@ while(<IN>)
 		{
 			my $id = "$id-E$e-L$len-pre-$pre-suf-$suf-suf2-$suf2";
 			$seq{$id} = $prot;
+			$dna{$id} = $dna;
 			$shift{$id}->{"E$e"} = $shift if $shift;
 		}
 	}
@@ -82,7 +86,9 @@ while(<IN>)
 
 open OUT, ">$out_faa" or die $!;
 open SHIFT, ">$out_shift" or die $!;
+open DNA, ">$out_fna" or die $!;
 my %done;
+my %done_dna;
 for my $id(sort keys %seq)
 {
 	my $newid = $id;
@@ -103,6 +109,12 @@ for my $id(sort keys %seq)
 		{
 			print SHIFT "$newid\t$e\t$shift{$id}->{$e}\n";
 		}
+	}
+	my $dna = $dna{$id};
+	unless($done_dna{$newid}->{$dna})
+	{
+		print DNA "$newid\t$id\t$dna\n";
+		$done_dna{$newid}->{$dna} = 1;
 	}
 }
 

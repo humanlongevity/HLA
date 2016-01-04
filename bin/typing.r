@@ -5,8 +5,9 @@ options(mc.cores = detectCores())
 library(data.table)
 
 dt <- fread(args[1])
-setnames(dt, c('q', 'qpos', 't', 'tlen', 'ts', 'te', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
+setnames(dt, c('q', 'qpos0', 'qpos', 't', 'tlen', 'ts', 'te', 'mis', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
 dt[, specific := as.double(specific)]
+dt <- dt[mis == 0]
 
 # for HLA alleles with frame shift variants, we require reads span over the frame shift site
 frame.shift <- fread('data/hla.shift')
