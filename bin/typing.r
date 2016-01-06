@@ -55,6 +55,7 @@ dt <- dt[msa %in% keep]
 dt[q %in% ignore, specific := 0]
 #dt[q %in% ignore, specific := 0.1]
 #dt[specific == 0, specific := 0.1]
+dt <- dt[specific > 0]
 
 print(nrow(dt))
 non.core <- dt[!((msa == 'ClassI' & EXON %in% c('E2', 'E3')) | (msa != 'ClassI' & EXON == 'E2'))]
@@ -195,37 +196,44 @@ solution <- solution[solution > 0]
 solution <- names(solution)
 print(solution)
 
-get.diff <- function(x, y) {
+get.diff <- function(x, y, superset) {
 	diff.reads <- qs[which(apply(mat[, c(x, y)], 1, diff) != 0)]
-	diff.match <- dt[q %in% diff.reads & type %in% c(solution, x, y)]
+	diff.match <- dt[q %in% diff.reads & type %in% c(superset, x, y)]
 	by.others <- diff.match[!type %in% c(x, y)]
 	#return(copy(diff.match))
 	return(copy(diff.match[!q %in% by.others$q]))
 }
 
-max.hit <- sum(apply(mat2[, solution], 1, max))
-empty.df <- data.frame(
-	'rank' = 1,
-	'solution' = '',
-	'missing' = 0,
-	'missing2' = 0,
-	'tier1' = '',
-	'tier2' = '',
-	'tier3' = '',
-	'best.sp' = max.hit,
-	'best.nonsp' = 0,
-	'comp.sp' = 0,
-	'comp.nonsp' = 0,
-	'competitor' = ''
-)
+get.diff.noncore <- function(a, b, superset = NULL){
+	if(a %in% colnames(mat.noncore) & b %in% colnames(mat.noncore)){
+		exon1 <- non.core[type == a, EXON]
+		exon2 <- non.core[type == b, EXON]
+		exon1 <- exon1[exon1 %in% exon2]
+		if(length(exon1) >= 1){
+			if(is.null(superset)){
+				count1 <- length(unique(non.core[type == a & EXON %in% exon1, q]))
+				count2 <- length(unique(non.core[type == b & EXON %in% exon1, q]))
+				return(count1 - count2)
+			}else{
+				superset <- superset[!superset %in% c(a, b)]
+				q.others <- non.core[type %in% superset & EXON %in% exon1, q]
+				count1 <- length(unique(non.core[type == a & EXON %in% exon1 & !(q %in% q.others), q]))
+				count2 <- length(unique(non.core[type == b & EXON %in% exon1 & !(q %in% q.others), q]))
+				return(count1 - count2)
+			}
+		}
+	}
+	return(0)
+}
 
+max.hit <- sum(apply(mat2[, solution], 1, max))
 more <- do.call(rbind, mclapply(solution, function(s){
 	minus1 <- solution[solution != s]
 	minus1.hit <- apply(mat2[, minus1], 1, max)
 	gene <- sub('(.+?)\\*.+', '^\\1', s)
 	others <- allele.names[grepl(gene, allele.names)]
 	other.hit <- sapply(others, function(i) sum(pmax(minus1.hit, mat2[, i])))
-	cand <- data.table('competitor' = as.character(others), 'missing' = max.hit - other.hit)
+	cand <- data.table('rank' = 0, 'solution' = '', 'competitor' = as.character(others), 'missing' = max.hit - other.hit)
     cand <- cand[order(missing)]
 	cand <- cand[1:min(50, length(others))]
 
@@ -233,7 +241,7 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	missing <- cand[missing <= 2, missing]
 	names(missing) <- ambig
 	sol <- s
-	if(length(ambig) > 0){
+	if(length(ambig) > 1){
 		bests <- sort(ambig)
 		x <- as.integer(sub('.+?\\*(\\d+):.+', '\\1', bests))
 		y <- as.integer(sub('.+?\\*\\d+:(\\d+).*', '\\1', bests))
@@ -241,64 +249,58 @@ more <- do.call(rbind, mclapply(solution, function(s){
 		total <- colSums(mat2[, bests, drop = F])
 #		sapply(bests, function(sol) sum(mat2[, sol]))
 		in.noncore <- bests %in% colnames(mat.noncore)
+		names(in.noncore) <- bests
 		total.noncore <- rep(0, length(bests))
 		total.noncore[in.noncore] <- colSums(mat.noncore[, bests[in.noncore], drop = F])
 		missing <- missing[bests]
-		bests <- bests[order(missing * 5 - total - total.noncore * 0.8)]
-		ambig <- bests[-1]
+#		solution.rest <- solution[!solution %in% bests]
+#		noncore.diff <- sapply(bests, function(best){
+#			min.diff <- min(sapply(bests[bests != best], function(s){
+#				diff1 <- get.diff.noncore(best, s)
+#				diff2 <- get.diff.noncore(best, s, solution.rest)
+#				return(diff1 + diff2 * 2)
+#			}))
+#			return(min.diff)
+#		})
+#		print(data.frame(bests, noncore.diff))
+#		bests <- bests[order(missing * 5 - total - total.noncore / 10 - noncore.diff)]
+		bests <- bests[order(missing * 5 - total - total.noncore / 3)]
+
 		sol <- bests[1]
-		cand[, rank := 1:nrow(cand)]
+		all <- unique(c(bests, cand$competitor))
+		cand <- cand[match(all, competitor)]
 	}
-
-	competition <- do.call(rbind, lapply(cand$competitor, function(comp){
-		diff.match <- get.diff(sol, comp)
-		c(
-		  	'rank' = 0,
-		  	'solution' = 0,
-		  	'my.total' = 0,
-		  	'comp.total' = 0,
-		  	'my.alone' = 0,
-		  	'comp.alone' = 0,
-		  	'my.noncore' = 0,
-		  	'comp.noncore' = 0,
-		  	'missing' = cand[competitor == comp, missing],
-		  	'missing2' = 0,
-			'tier1' = 0,
-		  	'tier2' = 0,
-		  	'tier3' = 0,
-			'best.sp' = nrow(diff.match[type == s & specific == 1]),
-			'best.nonsp' = nrow(diff.match[type == s & specific <  1]),
-			'comp.sp' = nrow(diff.match[type == comp & specific == 1]),
-			'comp.nonsp' = nrow(diff.match[type == comp & specific <  1])
-		)
-	}))
-	competition <- data.frame(competition)
-	competition$competitor <- cand$competitor
-	competition$solution <- sol
-#	if(length(others) > 1){
-#		competition <- subset(competition, solution != competitor)
-#	}
-	competition$rank <- 1:nrow(competition)
-#	competition$tier1 <- paste(ambig, collapse = ';')
-#	competition$tier2 <- paste(subset(competition, best.sp == 0 & best.nonsp > 0)$competitor, collapse = ';')
-#	competition$tier3 <- paste(subset(competition, best.sp > 0 & comp.sp > 0 & comp.sp * 5 >= best.sp)$competitor, collapse = ';')
-
-	competition
+	cand[, rank := 1:nrow(cand)]
+	cand[, solution := sol]
+	return(copy(cand))
 }))
-more <- data.table(more)
-more[, solution := as.character(solution)]
-more[, competitor := as.character(competitor)]
+#more <- data.table(more)
+#more[, solution := as.character(solution)]
+#more[, competitor := as.character(competitor)]
+
 solution <- more[rank == 1, solution]
 max.hit <- sum(apply(mat2[, solution], 1, max))
-hit.counts <- do.call(rbind, mclapply(1:nrow(more), function(x){
+comp.info <- do.call(rbind, mclapply(1:nrow(more), function(x){
 	sol <- more[x, solution]
 	comp <- more[x, competitor]
+
+	my.total <- sum(mat2[, sol])
+	comp.total <- sum(mat2[, comp])
+
 	minus1 <- solution[solution != sol]
 	minus1.hit <- apply(mat2[, minus1], 1, max)
 	other1.hit <- sum(pmax(minus1.hit, mat2[, comp]))
 	missing1 <- max.hit - other1.hit
-	my.total <- sum(mat2[, sol])
-	comp.total <- sum(mat2[, comp])
+
+	my.alone <- which(mat2[minus1.hit == 0, sol] > 0)
+	comp.alone <- which(mat2[minus1.hit == 0, comp] > 0)
+
+	gene <- sub('\\*.+', '', sol)
+    minus2 <- solution[-grep(gene, solution)]
+	minus2.hit <- apply(mat2[, minus2], 1, max)
+	other2.hit <- sum(pmax(minus2.hit, mat2[, comp]))
+	missing2 <- max.hit - other2.hit
+
 	my.noncore <- 0
 	comp.noncore <- 0
 	if(sol %in% colnames(mat.noncore)){
@@ -307,24 +309,33 @@ hit.counts <- do.call(rbind, mclapply(1:nrow(more), function(x){
 	if(comp %in% colnames(mat.noncore)){
 		comp.noncore <- sum(mat.noncore[, comp])
 	}
-	my.alone <- sum(mat2[minus1.hit == 0, sol])
-	comp.alone <- sum(mat2[minus1.hit == 0, comp])
-	gene <- sub('\\*.+', '', sol)
-    minus2 <- solution[-grep(gene, solution)]
-	minus2.hit <- apply(mat2[, minus2], 1, max)
-	other2.hit <- sum(pmax(minus2.hit, mat2[, comp]))
-	missing2 <- max.hit - other2.hit
-	c(my.total, comp.total, my.alone, comp.alone, my.noncore, comp.noncore, missing1, missing2)
+
+	noncore.diff <- get.diff.noncore(sol, comp)
+	noncore.diff.sp <- get.diff.noncore(sol, comp, solution)
+
+	c(
+	  'my.total' = my.total, 
+	  'comp.total' = comp.total, 
+	  'my.alone' = length(my.alone), 
+	  'comp.alone' = length(comp.alone), 
+	  'my.sp' = sum(!my.alone %in% comp.alone),
+	  'comp.sp' = sum(!comp.alone %in% my.alone),
+	  'missing1' = missing1,
+	  'missing2' = missing2, 
+	  'my.noncore' = my.noncore, 
+	  'comp.noncore' = comp.noncore, 
+	  'noncore.diff' = noncore.diff,
+	  'noncore.diff.sp' = noncore.diff.sp
+	)
 }))
-more[, my.total := hit.counts[, 1]]
-more[, comp.total := hit.counts[, 2]]
-more[, my.alone := hit.counts[, 3]]
-more[, comp.alone := hit.counts[, 4]]
-more[, my.noncore := hit.counts[, 5]]
-more[, comp.noncore := hit.counts[, 6]]
-more[, missing := hit.counts[, 7]]
-more[, missing2 := hit.counts[, 8]]
-#    cand <- cand[order(missing * 1e8 + missing2)]
+more <- cbind(more, comp.info)
+
+het <- copy(more)
+het[, gene := sub('\\*.+', '', solution)]
+het[, sum := my.total + my.noncore]
+het.ratio <- het[, .(ratio = max(sum) / min(sum), min = solution[which.min(sum)]), by = gene]
+het.ratio <- het.ratio[ratio > 10]
+more[solution %in% het.ratio$min, rank := 1000L + rank]
 
 important <- function(sol){
 	sol <- sub(';.+', '', as.character(sol))
@@ -333,21 +344,15 @@ important <- function(sol){
 	delta / explained * length(sol)
 }
 more[, importance := 0]
-solution <- unique(sub(';.+', '', more$solution))
 more[rank == 1, importance := important(solution)]
 more <- more[order(rank)]
-het <- more
-het[, gene := sub('\\*.+', '', solution)]
-het[, sum := my.total + my.noncore]
-het.ratio <- more[, .(ratio = max(sum) / min(sum), min = solution[which.min(sum)]), by = gene]
-het.ratio <- het.ratio[ratio > 10]
-more[solution %in% het.ratio$min, rank := 1000 + rank]
 
 print(more[rank == 1])
-write.table(more, row = F, col = F, sep = '\t', quo = F, file = args[2])
+write.table(more, row = F, sep = '\t', quo = F, file = args[2])
 
-#wrong <- c('DQB1*06:04', 'DQB1*06:09')
+#wrong <- c('DRB1*14:01', 'DRB1*14:54')
 #print(get.diff(wrong[1], wrong[2]))
 #key.match <- dt[type %in% c(more[rank == 1, solution], wrong)]
-#save(key.match, file = 'temp.rda')
+#noncore.match <- non.core[type %in% c(more[rank == 1, solution], wrong)]
+#save(key.match, noncore.match, file = 'temp.rda')
 #save.image(file = sprintf('%s.temp.rda', args[2]))
