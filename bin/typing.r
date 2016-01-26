@@ -267,7 +267,7 @@ more <- do.call(rbind, mclapply(solution, function(s){
 # 3: better candidate search iterations
 bad <- 1
 # TODO: it might keep running, ie: A -> B -> C -> A -> ...
-if(length(bad) > 0){
+while(length(bad) > 0){
 	solution <- more[rank == 1, solution]
 	max.hit <- sum(apply(mat2[, solution], 1, max))
 	comp.info <- data.table(do.call(rbind, mclapply(1:nrow(more), function(x){
@@ -286,8 +286,10 @@ if(length(bad) > 0){
 		)
 	})))
 	print(summary(comp.info))
-	bad <- which(comp.info[,comp.noncore.sp > 15 & missing1 * 5 + noncore.diff.sp < 0 & noncore.diff.sp < -10])
+	bad <- which(comp.info[, missing1 * 5 + noncore.diff.sp < 0 & ((comp.noncore.sp > 15 & noncore.diff.sp < -10) | (missing1 < -2))])
+	bad <- bad[!more[bad, competitor] %in% solution]
 	bad <- bad[!duplicated(more[bad, solution])]
+	bad <- bad[which.min(comp.info[bad, noncore.diff.sp])]
 	print(cbind(more[bad], comp.info[bad]))
 	better <- more[bad, competitor]
 	names(better) <- more[bad, solution]
@@ -351,12 +353,14 @@ comp.info <- do.call(rbind, mclapply(1:nrow(more), function(x){
 	)
 }))
 more <- cbind(more, comp.info)
+more[, missing := missing1]
 
 het <- copy(more)
 het[, gene := sub('\\*.+', '', solution)]
-het[, sum := my.total + my.noncore]
+het[, sum := my.total + my.noncore.total]
 het.ratio <- het[, .(ratio = max(sum) / min(sum), min = solution[which.min(sum)]), by = gene]
 het.ratio <- het.ratio[ratio > 10]
+print(het.ratio)
 more[solution %in% het.ratio$min, rank := 1000L + rank]
 
 important <- function(sol){
