@@ -213,17 +213,17 @@ get.diff.noncore <- function(a, b, superset = NULL){
 			if(is.null(superset)){
 				count1 <- length(unique(non.core[type == a & EXON %in% exon1, q]))
 				count2 <- length(unique(non.core[type == b & EXON %in% exon1, q]))
-				return(count1 - count2)
+				return(c(count1, count2, count1 - count2))
 			}else{
 				superset <- superset[!superset %in% c(a, b)]
 				q.others <- non.core[type %in% superset & EXON %in% exon1, q]
 				count1 <- length(unique(non.core[type == a & EXON %in% exon1 & !(q %in% q.others), q]))
 				count2 <- length(unique(non.core[type == b & EXON %in% exon1 & !(q %in% q.others), q]))
-				return(count1 - count2)
+				return(c(count1, count2, count1 - count2))
 			}
 		}
 	}
-	return(0)
+	return(c(0, 0, 0))
 }
 
 max.hit <- sum(apply(mat2[, solution], 1, max))
@@ -322,10 +322,14 @@ comp.info <- do.call(rbind, mclapply(1:nrow(more), function(x){
 	  'comp.sp' = sum(!comp.alone %in% my.alone),
 	  'missing1' = missing1,
 	  'missing2' = missing2, 
-	  'my.noncore' = my.noncore, 
-	  'comp.noncore' = comp.noncore, 
-	  'noncore.diff' = noncore.diff,
-	  'noncore.diff.sp' = noncore.diff.sp
+	  'my.noncore.total' = my.noncore, 
+	  'comp.noncore.total' = comp.noncore, 
+	  'my.noncore' = noncore.diff[1],
+	  'comp.noncore' = noncore.diff[2],
+	  'noncore.diff' = noncore.diff[3],
+	  'my.noncore.sp' = noncore.diff.sp[1],
+	  'comp.noncore.sp' = noncore.diff.sp[2],
+	  'noncore.diff.sp' = noncore.diff.sp[3]
 	)
 }))
 more <- cbind(more, comp.info)
@@ -351,7 +355,6 @@ print(more[rank == 1])
 write.table(more, row = F, sep = '\t', quo = F, file = args[2])
 
 #wrong <- c('DRB1*14:01', 'DRB1*14:54')
-#print(get.diff(wrong[1], wrong[2]))
 #key.match <- dt[type %in% c(more[rank == 1, solution], wrong)]
 #noncore.match <- non.core[type %in% c(more[rank == 1, solution], wrong)]
 #save(key.match, noncore.match, file = 'temp.rda')
