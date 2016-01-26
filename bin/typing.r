@@ -263,6 +263,12 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	return(copy(cand))
 }))
 
+# temporaly switch all solutions with N/Q/L/etc suffix to non-suffixed version
+non.suffix <- more[grepl('\\D$', solution) & !grepl('\\D$', competitor), .(solution, competitor)][!duplicated(solution)]
+to.change <- non.suffix$competitor
+names(to.change) <- non.suffix$solution
+print(to.change)
+more[solution %in% names(to.change), solution := to.change[solution]]
 
 # 3: better candidate search iterations
 bad <- 1
@@ -376,8 +382,7 @@ more <- more[order(rank)]
 print(more[rank == 1])
 write.table(more, row = F, sep = '\t', quo = F, file = args[2])
 
-#wrong <- c('DRB1*14:01', 'DRB1*14:54')
+#wrong <- c('C*04:01', 'C*04:09N')
 #key.match <- dt[type %in% c(more[rank == 1, solution], wrong)]
 #noncore.match <- non.core[type %in% c(more[rank == 1, solution], wrong)]
 #save(key.match, noncore.match, file = 'temp.rda')
-#save.image(file = sprintf('%s.temp.rda', args[2]))
