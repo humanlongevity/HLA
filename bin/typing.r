@@ -26,6 +26,10 @@ dt <- frame.shift[dt]
 spanned <- dt[ts < shift-1 & te > shift+1]
 dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
 
+# exon data avalability in IMGT
+exons <- data.table(read.delim('data/hla.tsv', h = F, stringsAsFactor = F)[, c('V2', 'V3')])
+setnames(exons, c('type', 'EXON'))
+
 # filter non-specific matching
 #dt <- dt[specific==1 & left==0 & right==0]
 dt <- dt[left==0 & right==0]
@@ -205,8 +209,8 @@ get.diff <- function(x, y, superset) {
 
 get.diff.noncore <- function(a, b, superset = NULL){
 	if(a %in% colnames(mat.noncore) & b %in% colnames(mat.noncore)){
-		exon1 <- non.core[type == a, EXON]
-		exon2 <- non.core[type == b, EXON]
+		exon1 <- exons[type == a, EXON]
+		exon2 <- exons[type == b, EXON]
 		exon1 <- exon1[exon1 %in% exon2]
 		if(length(exon1) >= 1){
 			if(is.null(superset)){
@@ -292,7 +296,7 @@ while(length(bad) > 0){
 		)
 	})))
 	print(summary(comp.info))
-	bad <- which(comp.info[, missing1 * 5 + noncore.diff.sp < 0 & ((comp.noncore.sp > 15 & noncore.diff.sp < -10) | (missing1 < -2))])
+	bad <- which(comp.info[, missing1 * 5 + noncore.diff.sp < 0 & ((comp.noncore.sp > 15 & noncore.diff.sp < -5) | (missing1 < -2))])
 	bad <- bad[!more[bad, competitor] %in% solution]
 	bad <- bad[!duplicated(more[bad, solution])]
 	bad <- bad[which.min(comp.info[bad, noncore.diff.sp])]
