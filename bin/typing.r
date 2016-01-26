@@ -186,8 +186,7 @@ f.con <- rbind(f.con.hit, f.con.bound, f.con.bound, f.con.heter, f.con.reg1, f.c
 f.dir <- c(f.dir.hit, f.dir.bound, f.dir.heter, f.dir.reg)
 f.rhs <- c(f.rhs.hit, f.rhs.bound, f.rhs.heter, f.rhs.reg)
 
-#save.image('temp.rda')
-
+# 1: initial solution candidate set via integer linear programming
 system.time(lps <- lp('max', f.obj, f.con, f.dir, f.rhs, int.vec = which(f.type == 'i'), binary.vec = which(f.type == 'b')))
 solution <- lps$solution[alleles]
 names(solution) <- allele.names
@@ -226,6 +225,7 @@ get.diff.noncore <- function(a, b, superset = NULL){
 	return(c(0, 0, 0))
 }
 
+# 2: round 0 for better candidate searching
 max.hit <- sum(apply(mat2[, solution], 1, max))
 more <- do.call(rbind, mclapply(solution, function(s){
 	minus1 <- solution[solution != s]
@@ -235,7 +235,7 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	other.hit <- sapply(others, function(i) sum(pmax(minus1.hit, mat2[, i])))
 	cand <- data.table('rank' = 0, 'solution' = '', 'competitor' = as.character(others), 'missing' = max.hit - other.hit)
     cand <- cand[order(missing)]
-	cand <- cand[1:min(50, length(others))]
+	cand <- cand[1:max(sum(missing <= 2), min(50, length(others)))]
 
 	ambig <- cand[missing <= 2, competitor]
 	missing <- cand[missing <= 2, missing]
@@ -247,23 +247,11 @@ more <- do.call(rbind, mclapply(solution, function(s){
 		y <- as.integer(sub('.+?\\*\\d+:(\\d+).*', '\\1', bests))
 		bests <- bests[order(x * 1e5 + y)]
 		total <- colSums(mat2[, bests, drop = F])
-#		sapply(bests, function(sol) sum(mat2[, sol]))
 		in.noncore <- bests %in% colnames(mat.noncore)
 		names(in.noncore) <- bests
 		total.noncore <- rep(0, length(bests))
 		total.noncore[in.noncore] <- colSums(mat.noncore[, bests[in.noncore], drop = F])
 		missing <- missing[bests]
-#		solution.rest <- solution[!solution %in% bests]
-#		noncore.diff <- sapply(bests, function(best){
-#			min.diff <- min(sapply(bests[bests != best], function(s){
-#				diff1 <- get.diff.noncore(best, s)
-#				diff2 <- get.diff.noncore(best, s, solution.rest)
-#				return(diff1 + diff2 * 2)
-#			}))
-#			return(min.diff)
-#		})
-#		print(data.frame(bests, noncore.diff))
-#		bests <- bests[order(missing * 5 - total - total.noncore / 10 - noncore.diff)]
 		bests <- bests[order(missing * 5 - total - total.noncore / 3)]
 
 		sol <- bests[1]
@@ -274,10 +262,40 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	cand[, solution := sol]
 	return(copy(cand))
 }))
-#more <- data.table(more)
-#more[, solution := as.character(solution)]
-#more[, competitor := as.character(competitor)]
 
+
+# 3: better candidate search iterations
+bad <- 1
+# TODO: it might keep running, ie: A -> B -> C -> A -> ...
+if(length(bad) > 0){
+	solution <- more[rank == 1, solution]
+	max.hit <- sum(apply(mat2[, solution], 1, max))
+	comp.info <- data.table(do.call(rbind, mclapply(1:nrow(more), function(x){
+		sol <- more[x, solution]
+		comp <- more[x, competitor]
+		minus1 <- solution[solution != sol]
+		minus1.hit <- apply(mat2[, minus1], 1, max)
+		other1.hit <- sum(pmax(minus1.hit, mat2[, comp]))
+		missing1 <- max.hit - other1.hit
+		noncore.diff.sp <- get.diff.noncore(sol, comp, solution)
+		c(
+	  	'missing1' = missing1,
+	  	'my.noncore.sp' = noncore.diff.sp[1],
+	  	'comp.noncore.sp' = noncore.diff.sp[2],
+	  	'noncore.diff.sp' = noncore.diff.sp[3]
+		)
+	})))
+	print(summary(comp.info))
+	bad <- which(comp.info[,comp.noncore.sp > 15 & missing1 * 5 + noncore.diff.sp < 0 & noncore.diff.sp < -10])
+	bad <- bad[!duplicated(more[bad, solution])]
+	print(cbind(more[bad], comp.info[bad]))
+	better <- more[bad, competitor]
+	names(better) <- more[bad, solution]
+	print(better)
+	more[solution %in% names(better), solution := better[solution]]
+}
+
+# 4: generate some diagnositic numbers
 solution <- more[rank == 1, solution]
 max.hit <- sum(apply(mat2[, solution], 1, max))
 comp.info <- do.call(rbind, mclapply(1:nrow(more), function(x){
