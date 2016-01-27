@@ -365,9 +365,9 @@ comp.info <- do.call(rbind, mclapply(1:nrow(more), function(x){
 more <- cbind(more, comp.info)
 more[, missing := missing1]
 
-het <- copy(more)
+het <- more[rank == 1]
 het[, gene := sub('\\*.+', '', solution)]
-het[, sum := my.total + my.noncore.total]
+het[, sum := my.alone + my.noncore.sp]
 het.ratio <- het[, .(ratio = max(sum) / min(sum), min = solution[which.min(sum)]), by = gene]
 het.ratio <- het.ratio[ratio > 10]
 print(het.ratio)
