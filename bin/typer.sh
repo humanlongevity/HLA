@@ -11,7 +11,7 @@ OUT=hla-$ID
 }
 BIN="`dirname \"$0\"`"
 
-mkdir $OUT
+mkdir -p $OUT
 
 echo "Extracting reads from S3"
 samtools view -u $S3 chr6:29886751-33090696 | samtools view -u -L data/hla.bed - > $OUT/$ID.bam
