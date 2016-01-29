@@ -236,6 +236,7 @@ more <- do.call(rbind, mclapply(solution, function(s){
 non.suffix <- more[grepl('\\D$', solution) & !grepl('\\D$', competitor), .(solution, competitor)][!duplicated(solution)]
 to.change <- non.suffix$competitor
 names(to.change) <- non.suffix$solution
+to.change <- to.change[!to.change %in% more$solution]
 print(to.change)
 more[solution %in% names(to.change), solution := to.change[solution]]
 
@@ -335,7 +336,6 @@ het[, gene := sub('\\*.+', '', solution)]
 het[, sum := my.alone + my.noncore.sp]
 het.ratio <- het[, .(ratio = max(sum) / min(sum), min = solution[which.min(sum)]), by = gene]
 het.ratio <- het.ratio[ratio > 10]
-print(het.ratio)
 more[solution %in% het.ratio$min, rank := 1000L + rank]
 
 important <- function(sol){
