@@ -1,12 +1,16 @@
 #!/usr/bin/env perl
 use strict;
 use List::Util qw(min);
-use Text::Levenshtein::XS qw/distance/;
+#use Text::Levenshtein::XS qw/distance/;
+use FindBin;
+my $bin=$FindBin::Bin;
+my $root = $bin;
+$root =~ s|/[^/]+?$||;
 
-die "usage: $0 fastq msa daa\n" unless $#ARGV == 2;
+die "usage: $0 fastq daa output\n" unless $#ARGV == 2;
 my $fastq_file = shift;
-my $msa_file = shift;
 my $daa_file = shift;
+my $out_file = shift;
 
 print STDERR "processing FASTQ file\n";
 my %qseq;
@@ -22,7 +26,7 @@ while(my $h = <IN>)
 	$qseq{$h} = $seq;
 	$qlen{$h} = length $seq;
 }
-print STDERR "found ", scalar(keys %qseq), " reads";
+print STDERR "\tfound ", scalar(keys %qseq), " reads\n";
 
 print STDERR "processing MSA file\n";
 my %tseq;
@@ -32,7 +36,7 @@ my %suf;
 my %type;
 my %gene;
 my %is_gene;
-open(IN, $msa_file) or die $!;
+open(IN, "$root/data/hla.tsv") or die $!;
 while(<IN>)
 {
 	chomp;
@@ -47,17 +51,7 @@ while(<IN>)
 	$gene{"$g\t$exon"}->{$id} = 1;
 	$is_gene{$id} = "$g\t$exon";
 }
-print STDERR "found ", scalar(keys %tseq), " HLA exons\n";
-
-#print STDERR "processing the frame shift file\n";
-#open(IN, $shift_file) or die $!;
-#while(<IN>)
-#{
-#	chomp;
-#	my ($id, $exon, $shift) = split(/\t/, $_);
-#	my $type = $1 if $id =~ m/(.+)-E/;
-#	$shift{$type}->{$exon} = $shift;
-#}
+print STDERR "\tfound ", scalar(keys %tseq), " HLA exons\n";
 
 print STDERR "processing DAA file\n";
 open(IN, "diamond view -a '$daa_file' -o /dev/stdout |") or die $!;
@@ -79,38 +73,34 @@ while(<IN>)
 		$mLEN{$qu} = $len;
 		$mlen{$g}->{$q} = $len;
 		$match{$g}->{$q} = [$target, $qs, $qe, $ts, $te, $len];
-		print STDERR "\t$target\n" unless $matched{$target};
 	}
 	$matched{$target}++ if $len >= $mlen{$g}->{$q};
 	$nonspec{$q}++ if not($tseq{$target}) && $len >= $mlen{$g}->{$q};
 }
-print STDERR "matched to ", scalar(keys %matched), " HLA exons\n";
-print STDERR scalar(keys %nonspec), " reads matched to HLA types not in the MSA file\n";
+print STDERR "\tmatched to ", scalar(keys %matched), " HLA exons\n";
+print STDERR "\t", scalar(keys %nonspec), " reads matched to HLA types not in the MSA file\n";
 
 my %dna;
-$msa_file =~ s/\.tsv$/\.fna/;
-open(IN, $msa_file) or die $!;
+open(IN, "$root/data/hla.fna") or die $!;
 while(<IN>)
 {
 	my @a = split(/\t/, $_);
 	$dna{$a[0]}->{$a[2]} = 1 if $matched{$a[0]};
 }
 
+open OUT, ">$out_file" or die $!;
 print STDERR "translating matches to MSA\n";
 my %done;
 my %done2;
 my %save;
 for my $g(keys %match)
 {
-	print STDERR "\t$g\n";
 	for my $q(keys %{$match{$g}})
 	{
-		print STDERR "\t\t$q\n";
 		my ($target, $qs, $qe, $ts, $te, $mlen) = @{$match{$g}->{$q}};
 		my $qu = $1 if $q =~ m/(.+)==.+?/;
 		next if $mlen < $mLEN{$qu};
 		my $spe = $nonspec{$q} ? 0 : 1;
-		print STDERR "\t\t\t$qu($qlen{$qu}):$qs-$qe vs $target($tlen{$target}):$ts-$te\n";
 
 		my $qpart = "$qlen{$qu}:$qs-$qe";
 		my $qseq = $qseq{$qu};
@@ -118,10 +108,8 @@ for my $g(keys %match)
 		{
 			$qseq =~ tr/ATGC/TACG/;
 			$qseq = reverse $qseq;
-			print STDERR "\t\t\t\tflipping $qs-$qe to";
 			$qs = $qlen{$qu} - $qs + 1;
 			$qe = $qlen{$qu} - $qe + 1;
-			print STDERR " $qs-$qe\n";
 		}
 		my $mseq = translate($qseq, $qs, $qe);
 		my $qcode = substr($qseq, $qs-1, $qe-$qs+1);
@@ -139,20 +127,16 @@ for my $g(keys %match)
 			$suf1 = substr($qseq, $qe, 1);
 			$suf2 = substr($qseq, $qe, 2);
 		}
-		print STDERR "\t\t\t\tchecking prefix or suffix leftover on the query:\n";
-		print STDERR "\t\t\t\t\tpre1=$pre1, pre2=$pre2, suf1=$suf1, suf2=$suf2\n";
 
 		my $tag = "$g-$pre2-$pre1-$qcode-$suf1-$suf2";
-		print STDERR "\t\t\t\ttag code: $tag\n";
 		next if $done{$tag.$qu};
 		$done{$tag.$qu} = 1;
-		print STDERR "\t\t\t\ttag not processed yet\n";
 
 		if($save{$tag})
 		{
 			for my $k(keys %{$save{$tag}})
 			{
-				print "$qu\t$qpart\t$qlen{$qu}:$qs-$qe\t$k";
+				print OUT "$qu\t$qpart\t$qlen{$qu}:$qs-$qe\t$k";
 			}
 			next;
 		}
@@ -179,7 +163,6 @@ for my $g(keys %match)
 		my $tlen = $end - $start + 1;
 		$start--;
 		my $tseq = substr($tseq{$target}, $start, $tlen);
-		print STDERR "\t\t\t\tconverting $ts-$te position to MSA $start-$end\n";
 
 				
 		# the sequence check part should be removed later. Only for debuging purpose
@@ -189,16 +172,12 @@ for my $g(keys %match)
 
 		for my $t(keys %{$gene{$g}})
 		{
-			print STDERR "\t\t\t\t\tcomparing with $t\n";
 			next unless $matched{$t};
-			print STDERR "\t\t\t\t\tsaw this before ($matched{$t} times)\n";
 			next if $done2{$qu}->{$t};
 			my $comp = substr($tseq{$t}, $start, $tlen);
 			next unless $comp eq $tseq;
-			print STDERR "\t\t\t\t\tsequence matched\n";
 			my $pre_len = length $pre{$t};
 			my ($pre, $suf);
-			print STDERR "\t\t\t\t\tchecking prefix match\n" if $pre_len;
 			if($pre_len == 1)
 			{
 				next if $pre1 && $pre{$t} ne $pre1;
@@ -208,9 +187,7 @@ for my $g(keys %match)
 				next if $pre2 && $pre{$t} ne $pre2;
 				$pre = $pre2;
 			}
-			print STDERR "\t\t\t\t\tprefix matched ($pre{$t} vs $pre)\n" if $pre_len;
 			my $suf_len = length $suf{$t};
-			print STDERR "\t\t\t\t\tchecking suffix match\n" if $suf_len;
 			if($suf_len == 1)
 			{
 				next if $suf1 && $suf{$t} ne $suf1;
@@ -221,22 +198,20 @@ for my $g(keys %match)
 				$suf = $suf2;
 			}
 			$done2{$qu}->{$t} = 1;
-			print STDERR "\t\t\t\t\tsuffix matched ($suf{$t} vs $suf)\n" if $pre_len;
 			my $dist = 1000;
-			print STDERR "\t\t\t\t\tcomparing DNA sequence (qcode = $qcode)\n";
 			for my $tcode(keys %{$dna{$t}})
 			{
 				my $tt = substr($tcode, ($ts-1)*3, ($te-$ts+1)*3);
-#				print STDERR "\t\t\t\t\t\t$tt = substr($tcode, ($ts-1)*3, ($te-$ts+1)*3);\n";
-				my $edit = distance($qcode, $tt);
-#				print STDERR "\t\t\t\t\t\tedit = $edit\n";
+#				my $edit = distance($qcode, $tt);
+				my $edit = $qcode eq $tt ? 0 : 1;
 				$dist = $edit if $edit < $dist;
 			}
-			print "$qu\t$qpart\t$qlen{$qu}:$qs-$qe\t$t\t$tlen{$t}\t$ts\t$te\t$dist\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n";
+			print OUT "$qu\t$qpart\t$qlen{$qu}:$qs-$qe\t$t\t$tlen{$t}\t$ts\t$te\t$dist\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n";
 			$save{$tag}->{"$t\t$tlen{$t}\t$ts\t$te\t$dist\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n"} = 1;
 		}
 	}
 }
+close OUT;
 
 sub translate
 {

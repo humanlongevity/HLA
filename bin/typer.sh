@@ -20,7 +20,7 @@ bamtools convert -format fastq -in $OUT/$ID.bam | sga preprocess -q20 -f5 -m 100
 echo "Aligning reads to IMGT database"
 diamond blastx -C 20000 --index-mode 2 --seg no --min-score 10 --top 20 -c 1 -v -d data/hla -q $OUT/$ID.fq -a $OUT/$ID.daa
 echo "Preparing data for the typing algorithm"
-$BIN/bin/by.msa.pl $OUT/$ID.fq data/hla.tsv $OUT/$ID.daa 2>/dev/null >$OUT/$ID.tsv
+$BIN/bin/by.msa.pl $OUT/$ID.fq $OUT/$ID.daa $OUT/$ID.tsv
 echo "Typing"
 $BIN/bin/typing.r $OUT/$ID.tsv $OUT/$ID.hla
 echo "Reporting"
