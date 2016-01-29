@@ -1,16 +1,26 @@
 #!/usr/bin/env Rscript
-args <- commandArgs(T)
+
+args <- commandArgs()
+code.source <- sub('--file=', '', args[4])
+if(length(args) != 7) {
+	cat("usage:", code.source, "input.tsv output.tsv\n")
+	q()
+}
+data.dir <- dirname(code.source)
+align.path <- args[6]
+out.path <- args[7]
 library(parallel)
 options(mc.cores = detectCores())
 library(data.table)
+library(lpSolve)
 
-dt <- fread(args[1])
+dt <- fread(align.path)
 setnames(dt, c('q', 'qpos0', 'qpos', 't', 'tlen', 'ts', 'te', 'mis', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
 dt[, specific := as.double(specific)]
 dt <- dt[mis == 0]
 
 # for HLA alleles with frame shift variants, we require reads span over the frame shift site
-frame.shift <- fread('data/hla.shift')
+frame.shift <- fread(sprintf('%s/../data/hla.shift', data.dir))
 setnames(frame.shift, c('t', 'EXON', 'shift'))
 frame.shift[, type := sub('-E.+', '', t)]
 frame.shift[, MSA := sub('\\*.+', '', t)]
@@ -27,13 +37,12 @@ spanned <- dt[ts < shift-1 & te > shift+1]
 dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
 
 # exon data avalability in IMGT
-exons <- data.table(read.delim('data/hla.tsv', h = F, stringsAsFactor = F)[, c('V2', 'V3')])
+exons <- data.table(read.delim(sprintf('%s/../data/hla.tsv', data.dir), h = F, stringsAsFactor = F)[, c('V2', 'V3')])
 setnames(exons, c('type', 'EXON'))
 
 # filter non-specific matching
 #dt <- dt[specific==1 & left==0 & right==0]
 dt <- dt[left==0 & right==0]
-# TODO, filter core exons
 
 # filter pair end matches
 dt[, qp := sub('/\\d$', '', q)]
@@ -48,11 +57,6 @@ specific.pairs <- dt[pair1 == 2 & specific == 1, qp]
 dt[qp %in% specific.pairs, specific := 1]
 
 # only keep Class I (A, B, C) and DRB1, DQB1, and DPB1
-# There are other genes very similar to the above:
-# H, Y (27% and 11% with A), and 
-# DRB3, DRB5, DRB7, DRB4, DRB2 (50%, 23%, 16%, 9%, and 4% with DRB1)
-# However, including those makes performance drop. It is much easier to 
-# just ignore any reads that mapped to those similar genes
 keep <- c('ClassI', 'DRB1', 'DQB1', 'DPB1')
 ignore <- dt[! msa %in% keep, q]
 dt <- dt[msa %in% keep]
@@ -66,13 +70,6 @@ non.core <- dt[!((msa == 'ClassI' & EXON %in% c('E2', 'E3')) | (msa != 'ClassI' 
 print(nrow(non.core))
 dt <- dt[(msa == 'ClassI' & EXON %in% c('E2', 'E3')) | (msa != 'ClassI' & EXON == 'E2')]
 print(nrow(dt))
-
-#library(IRanges)
-#setkey(dt, t)
-#cov <- dt[, .(
-#	n = .N, 
-#	cov = sum(width(reduce(IRanges(pos, width = len)))),
-#), keyby = t]
 
 mat <- dcast(dt, q ~ type, value.var = 'specific', fun.aggregate = max, fill = 0)
 qs <- mat$q
@@ -109,22 +106,12 @@ nr <- length(reads)
 gamma <- 0.01
 beta <- 0.009
 
-library(lpSolve)
-#f.obj <-  c(rep(-gamma, na), rep(1,  nr), rep(-beta, nr), 0  )
 f.obj <-  c(rep(-gamma, na), weight,      -beta * weight, 0  )
 f.type <- c(rep('b', na),    rep('b',nr), rep('i',   nr), 'i')
 
 all.zero <- c(rep(0, na), rep(0, 2 * nr), 0)
 heter <- length(all.zero)
 
-# constraints for 1 or 2 alleles per gene
-#f.con.bound <- do.call(rbind, mclapply(allele.genes, function(gene){
-#    con <- all.zero
-#    con[grep(sprintf("^%s", gene), allele.names)] <- 1
-#    rbind(con, con)
-#}))
-#f.dir.bound <- rep(c('>=', '<='), n.genes)
-#f.rhs.bound <- rep(c( 1,    2  ), n.genes)
 f.con.bound <- t(matrix(all.zero, nrow = heter, ncol = n.genes))
 for(g in seq_along(allele.genes)){
 	this.gene <- grep(sprintf("^%s", allele.genes[g]), allele.names)
@@ -132,27 +119,17 @@ for(g in seq_along(allele.genes)){
 }
 f.dir.bound <- rep(c('>=', '<='), each = n.genes)
 f.rhs.bound <- rep(c( 1,    2  ), each = n.genes)
-#f.rhs.bound[f.rhs.bound == 1 & grepl('^DRB[345]', rep(allele.genes, 2))] <- 0
-#f.rhs.bound[f.rhs.bound == 2 & grepl('^DRB[345]', rep(allele.genes, 2))] <- 1
 
 zero.m <- t(matrix(all.zero, nrow = heter, ncol = nr))
 yindex <- matrix(c(1:nr, na + 1:nr), ncol = 2)
 gindex <- matrix(c(1:nr, na + nr + 1:nr), ncol = 2)
+
 # constraints for hit incidence matrix
-#system.time(
-#f.con.hit <- do.call(rbind, mclapply(1:nr, function(i){
-#    con <- all.zero
-#    con[1:na] <- mat[i,]
-#    con[na + i] <- -1
-#    con
-#}))
-#)
 f.con.hit <- zero.m
 f.con.hit[yindex] <- -1
 f.con.hit[, 1:na] <- mat
 f.dir.hit <- rep('>=', nr)
 f.rhs.hit <- rep(0, nr)
-
 
 # num of heterozygous genes
 f.con.heter <- all.zero
@@ -162,18 +139,6 @@ f.dir.heter <- '=='
 f.rhs.heter <- n.genes
 
 # regularization for heterozygous genes
-#system.time(f.con.reg <- do.call(rbind, mclapply(1:nr, function(i){
-#    con <- rbind(all.zero, all.zero, all.zero)
-#    con[ , na + nr + i] <- 1
-#    con[1, na + i] <- -n.genes
-#    con[3, na + i] <- -n.genes
-#    con[2, heter] <- -1
-#    con[3, heter] <- -1
-#    con
-#})))
-#f.dir.reg <- rep(c('<=', '<=', '>='), nr)
-#f.rhs.reg <- rep(c(0, 0, -n.genes), nr)
-
 zero.m[gindex] <- 1
 f.con.reg1 <- zero.m
 f.con.reg2 <- zero.m
@@ -384,7 +349,7 @@ more[rank == 1, importance := important(solution)]
 more <- more[order(rank)]
 
 print(more[rank == 1])
-write.table(more, row = F, sep = '\t', quo = F, file = args[2])
+write.table(more, row = F, sep = '\t', quo = F, file = out.path)
 
 #wrong <- c('C*04:01', 'C*04:09N')
 #key.match <- dt[type %in% c(more[rank == 1, solution], wrong)]
