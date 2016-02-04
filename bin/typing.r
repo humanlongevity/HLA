@@ -305,40 +305,36 @@ comp.info <- do.call(rbind, mclapply(1:nrow(more), function(x){
 more <- cbind(more, comp.info)
 more[, missing := missing.core + missing.noncore - extra.core - extra.noncore]
 
-#reads <- rbind(core[type %in% solution], non.core[type %in% solution])
-#het.rate <- function(SD){
-#	if(nrow(SD) == 2){
-#		a <- SD[1, solution]
-#		b <- SD[2, solution]
-#		print(a)
-#		print(b)
-#		exon.shared <- shared.exon(a, b)
-#		print(exon.shared)
-#		a.rest <- solution[solution != a]
-#		b.rest <- solution[solution != b]
-#		a.reads <- reads[type == a & EXON %in% exon.shared] 
-#		a.reads.others <- reads[type %in% a.rest]
-#		a.reads <- a.reads[!q %in% a.reads.others$q]
-#		b.reads <- reads[type == b & EXON %in% exon.shared] 
-#		b.reads.others <- reads[type %in% b.rest]
-#		b.reads <- b.reads[!q %in% b.reads.others$q]
-#		print(c(nrow(a.reads), nrow(b.reads)))
-##		print(reads[q %in% a.reads$q & type %in% c(a, b)])
-#		if(b == 'A*24:03'){
-#			print(reads[q %in% b.reads$q & type %in% c(a, b)])
-#		}
-#	}else{
-#	}
-#}
-#
-#het <- more[rank == 1]
-#het[, gene := sub('\\*.+', '', solution)]
-#het[, het.rate(.SD), by = gene]
-#het[, sum := my.alone + my.noncore.sp]
-#het.ratio <- het[, .(ratio = max(sum) / min(sum), min = solution[which.min(sum)]), by = gene]
-#print(het.ratio)
-#het.ratio <- het.ratio[ratio > 10]
-##more[solution %in% het.ratio$min, rank := 1000L + rank]
+het.reads <- function(sols){
+	if(length(sols) == 2){
+		diff <- get.diff(sols[1], sols[2], solution)
+		return(as.double(diff[3:4]))
+	}else{
+		return(as.double(1))
+	}
+}
+het.cover <- function(sols){
+	if(length(sols) == 2){
+		cat(sols, fill = T)
+		exon.shared <- shared.exon(sols[1], sols[2])
+		a <- specific.reads(sols[1], solution, exon.shared)
+		b <- specific.reads(sols[2], solution, exon.shared)
+		a.cover <- 0
+		b.cover <- 0
+		for(e in unique(c(a$EXON, b$EXON))){
+			cat(sols, e, fill = T)
+			a.range <- IRanges::IRanges(a[EXON == e, ts], a[EXON == e, te])
+			a.cover <- a.cover + sum(IRanges::width(IRanges::reduce(a.range)))
+			b.range <- IRanges::IRanges(b[EXON == e, ts], b[EXON == e, te])
+			b.cover <- b.cover + sum(IRanges::width(IRanges::reduce(b.range)))
+		}
+		return(as.double(c(a.cover, b.cover)))
+	}else{
+		return(as.double(1))
+	}
+}
+more[rank == 1, heter.reads := het.reads(solution), by = .(sub('\\*.+', '', solution))]
+#more[rank == 1, heter.cover := het.cover(solution), by = .(sub('\\*.+', '', solution))]
 
 important <- function(solution){
 	explained <- sum(apply(mat[, solution], 1, max))
@@ -354,8 +350,13 @@ more[, importance := 0]
 more[rank == 1, importance := important(solution)]
 more <- more[order(rank)]
 
+het <- more[rank == 1]
+het[, gene := sub('\\*.+', '', solution)]
+het.ratio <- het[, .(ratio = max(heter.reads) / min(heter.reads), min = solution[which.min(heter.reads)]), by = gene]
+het.ratio <- het.ratio[ratio >= 5]
+more[solution %in% het.ratio$min, rank := 1000L + rank]
+
 print(more[rank == 1])
-print(more[rank == 2])
 write.table(more, row = F, sep = '\t', quo = F, file = out.path)
 
 #wrong <- c('C*04:01', 'C*04:09N')
