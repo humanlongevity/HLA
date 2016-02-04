@@ -45,7 +45,7 @@ def main():
 	traits = {
 		'subject_id': args.subject, 
 		'sample_id': args.sample, 
-		'report_type': 'hla',
+		'report_type': 'hla_typing',
 		'report_version': version,
 		'creation_time': creation_time, 
 		'hla': {
