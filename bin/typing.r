@@ -281,11 +281,12 @@ while(length(bad) > 0){
 		comp <- more[x, competitor]
 		get.diff(sol, comp, solution)
 	})))
-	print(summary(comp.info))
-	bad <- which(comp.info[, missing.core * 5 + missing.noncore < 0 & ((comp.noncore > 15 & missing.noncore < -5) | (missing.core < -2))])
+	comp.info[, core := missing.core-extra.core]
+	comp.info[, noncore := missing.noncore-extra.noncore]
+	bad <- which(comp.info[, core * 5 + noncore < 0 & ((comp.noncore > 15 & noncore < -5) | (core < -2))])
 	bad <- bad[!more[bad, competitor] %in% solution]
 	bad <- bad[!duplicated(more[bad, solution])]
-	bad <- bad[which.min(comp.info[bad, missing.noncore])]
+	bad <- bad[which.min(comp.info[bad, noncore])]
 	print(cbind(more[bad], comp.info[bad]))
 	better <- more[bad, competitor]
 	names(better) <- more[bad, solution]
