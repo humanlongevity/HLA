@@ -14,10 +14,10 @@ options(mc.cores = detectCores())
 library(data.table)
 library(lpSolve)
 
-dt <- fread(align.path)
-setnames(dt, c('q', 'qpos0', 'qpos', 't', 'tlen', 'ts', 'te', 'mis', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
-dt[, specific := as.double(specific)]
-dt <- dt[mis == 0]
+all <- fread(align.path)
+setnames(all, c('q', 'qpos0', 'qpos', 't', 'tlen', 'ts', 'te', 'mis', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
+all[, specific := as.double(specific)]
+all <- all[mis == 0]
 
 # for HLA alleles with frame shift variants, we require reads span over the frame shift site
 frame.shift <- fread(sprintf('%s/../data/hla.shift', data.dir))
@@ -25,53 +25,56 @@ setnames(frame.shift, c('t', 'EXON', 'shift'))
 frame.shift[, type := sub('-E.+', '', t)]
 frame.shift[, MSA := sub('\\*.+', '', t)]
 frame.shift[, MSA := ifelse(MSA %in% c('A', 'B', 'C'), 'ClassI', MSA)]
-setkey(dt, msa, exon, ts)
-frame.shift[, mapped := dt[msa == MSA & exon == EXON & ts < shift-1 & te > shift+1, .N], by = .(MSA, EXON, shift)]
+setkey(all, msa, exon, ts)
+frame.shift[, mapped := all[msa == MSA & exon == EXON & ts < shift-1 & te > shift+1, .N], by = .(MSA, EXON, shift)]
 frame.shift <- frame.shift[mapped > 0]
 frame.shift[, t := NULL]
 setkey(frame.shift, type, EXON)
 frame.shift <- unique(frame.shift)
-setkey(dt, type, exon)
-dt <- frame.shift[dt]
-spanned <- dt[ts < shift-1 & te > shift+1]
-dt <- dt[type %in% spanned$type | !(type %in% frame.shift$type)]
+setkey(all, type, exon)
+all <- frame.shift[all]
+spanned <- all[ts < shift-1 & te > shift+1]
+all <- all[type %in% spanned$type | !(type %in% frame.shift$type)]
 
 # exon data avalability in IMGT
 exons <- data.table(read.delim(sprintf('%s/../data/hla.tsv', data.dir), h = F, stringsAsFactor = F)[, c('V2', 'V3')])
 setnames(exons, c('type', 'EXON'))
 
 # filter non-specific matching
-#dt <- dt[specific==1 & left==0 & right==0]
-dt <- dt[left==0 & right==0]
+#all <- all[specific==1 & left==0 & right==0]
+all <- all[left==0 & right==0]
 
 # filter pair end matches
-dt[, qp := sub('/\\d$', '', q)]
-nr <- dt[, .(pair1 = length(unique(q))), keyby = qp]
-setkey(dt, qp)
-dt <- nr[dt]
-nr <- dt[, .(pair2 = length(unique(q))), keyby = .(qp, type)]
-setkey(dt, qp, type)
-dt <- nr[dt]
-dt <- dt[pair1 == pair2]
-specific.pairs <- dt[pair1 == 2 & specific == 1, qp]
-dt[qp %in% specific.pairs, specific := 1]
+all[, qp := sub('/\\d$', '', q)]
+nr <- all[, .(pair1 = length(unique(q))), keyby = qp]
+setkey(all, qp)
+all <- nr[all]
+nr <- all[, .(pair2 = length(unique(q))), keyby = .(qp, type)]
+setkey(all, qp, type)
+all <- nr[all]
+all <- all[pair1 == pair2]
+specific.pairs <- all[pair1 == 2 & specific == 1, qp]
+all[qp %in% specific.pairs, specific := 1]
 
 # only keep Class I (A, B, C) and DRB1, DQB1, and DPB1
 keep <- c('ClassI', 'DRB1', 'DQB1', 'DPB1')
-ignore <- dt[! msa %in% keep, q]
-dt <- dt[msa %in% keep]
-dt[q %in% ignore, specific := 0]
-#dt[q %in% ignore, specific := 0.1]
-#dt[specific == 0, specific := 0.1]
-dt <- dt[specific > 0]
+ignore <- all[! msa %in% keep, q]
+all <- all[msa %in% keep]
+all[q %in% ignore, specific := 0]
+#all[q %in% ignore, specific := 0.1]
+#all[specific == 0, specific := 0.1]
+all <- all[specific > 0]
 
-print(nrow(dt))
-non.core <- dt[!((msa == 'ClassI' & EXON %in% c('E2', 'E3')) | (msa != 'ClassI' & EXON == 'E2'))]
+
+# separate core and non-core exons
+print(nrow(all))
+non.core <- all[!((msa == 'ClassI' & EXON %in% c('E2', 'E3')) | (msa != 'ClassI' & EXON == 'E2'))]
 print(nrow(non.core))
-dt <- dt[(msa == 'ClassI' & EXON %in% c('E2', 'E3')) | (msa != 'ClassI' & EXON == 'E2')]
-print(nrow(dt))
+core <- all[(msa == 'ClassI' & EXON %in% c('E2', 'E3')) | (msa != 'ClassI' & EXON == 'E2')]
+print(nrow(core))
 
-mat <- dcast(dt, q ~ type, value.var = 'specific', fun.aggregate = max, fill = 0)
+# matrix for core exon alignments
+mat <- dcast(core, q ~ type, value.var = 'specific', fun.aggregate = max, fill = 0)
 qs <- mat$q
 mat[, q := NULL]
 mat <- as.matrix(mat)
@@ -79,6 +82,7 @@ weight <- apply(mat, 1, max)
 mat2 <- mat
 mat[mat > 0] <- 1
 
+# matrix for non-core exon alignments
 mat.noncore <- dcast(non.core, q ~ type, value.var = 'specific', fun.aggregate = max, fill = 0)
 mat.noncore[, q := NULL]
 mat.noncore <- as.matrix(mat.noncore)
@@ -96,6 +100,8 @@ mat <- mat[cand, ]
 qs <- qs[cand]
 weight <- weight[cand]
 
+
+# preparing to setup Integer Linear Programming
 allele.names <- colnames(mat)
 allele.genes <- unique(sub('\\*.+', '', allele.names))
 n.genes <- length(allele.genes)
@@ -103,15 +109,19 @@ alleles <- 1:ncol(mat)
 reads <- 1:nrow(mat)
 na <- length(alleles)
 nr <- length(reads)
+all.zero <- c(rep(0, na), rep(0, 2 * nr), 0)
+heter <- length(all.zero)
+zero.m <- t(matrix(all.zero, nrow = heter, ncol = nr))
+yindex <- matrix(c(1:nr, na + 1:nr), ncol = 2)
+gindex <- matrix(c(1:nr, na + nr + 1:nr), ncol = 2)
 gamma <- 0.01
 beta <- 0.009
 
+# ILP objective
 f.obj <-  c(rep(-gamma, na), weight,      -beta * weight, 0  )
 f.type <- c(rep('b', na),    rep('b',nr), rep('i',   nr), 'i')
 
-all.zero <- c(rep(0, na), rep(0, 2 * nr), 0)
-heter <- length(all.zero)
-
+# constraints for number of chromosomes
 f.con.bound <- t(matrix(all.zero, nrow = heter, ncol = n.genes))
 for(g in seq_along(allele.genes)){
 	this.gene <- grep(sprintf("^%s", allele.genes[g]), allele.names)
@@ -120,9 +130,6 @@ for(g in seq_along(allele.genes)){
 f.dir.bound <- rep(c('>=', '<='), each = n.genes)
 f.rhs.bound <- rep(c( 1,    2  ), each = n.genes)
 
-zero.m <- t(matrix(all.zero, nrow = heter, ncol = nr))
-yindex <- matrix(c(1:nr, na + 1:nr), ncol = 2)
-gindex <- matrix(c(1:nr, na + nr + 1:nr), ncol = 2)
 
 # constraints for hit incidence matrix
 f.con.hit <- zero.m
@@ -164,36 +171,6 @@ solution <- solution[solution > 0]
 solution <- names(solution)
 print(solution)
 
-get.diff <- function(x, y, superset) {
-	diff.reads <- qs[which(apply(mat[, c(x, y)], 1, diff) != 0)]
-	diff.match <- dt[q %in% diff.reads & type %in% c(superset, x, y)]
-	by.others <- diff.match[!type %in% c(x, y)]
-	#return(copy(diff.match))
-	return(copy(diff.match[!q %in% by.others$q]))
-}
-
-get.diff.noncore <- function(a, b, superset = NULL){
-	if(a %in% colnames(mat.noncore) & b %in% colnames(mat.noncore)){
-		exon1 <- exons[type == a, EXON]
-		exon2 <- exons[type == b, EXON]
-		exon1 <- exon1[exon1 %in% exon2]
-		if(length(exon1) >= 1){
-			if(is.null(superset)){
-				count1 <- length(unique(non.core[type == a & EXON %in% exon1, q]))
-				count2 <- length(unique(non.core[type == b & EXON %in% exon1, q]))
-				return(c(count1, count2, count1 - count2))
-			}else{
-				superset <- superset[!superset %in% c(a, b)]
-				q.others <- non.core[type %in% superset & EXON %in% exon1, q]
-				count1 <- length(unique(non.core[type == a & EXON %in% exon1 & !(q %in% q.others), q]))
-				count2 <- length(unique(non.core[type == b & EXON %in% exon1 & !(q %in% q.others), q]))
-				return(c(count1, count2, count1 - count2))
-			}
-		}
-	}
-	return(c(0, 0, 0))
-}
-
 # 2: round 0 for better candidate searching
 max.hit <- sum(apply(mat2[, solution], 1, max))
 more <- do.call(rbind, mclapply(solution, function(s){
@@ -232,6 +209,59 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	return(copy(cand))
 }))
 
+# functions for downstream ranking
+shared.exon <- function(a, b){
+	exon1 <- exons[type == a, EXON]
+	exon2 <- exons[type == b, EXON]
+	return(exon1[exon1 %in% exon2])
+}
+all.exons <- exons[, unique(EXON)]
+specific.reads <- function(a, superset, EXONS = all.exons, dt = all){
+	superset <- superset[superset != a]
+	EXONS <- EXONS[EXONS %in% dt$EXON]
+	if(length(EXONS) >= 1){
+		my.reads <- dt[type == a & EXON %in% EXONS]
+		other.reads <- dt[type %in% superset & EXON %in% EXONS, q]
+		return(my.reads[!q %in% other.reads])
+	}else{
+		return(dt[0])
+	}
+}
+diff.count <- function(a, b, superset = NULL, dt = all){
+	exon.shared <- shared.exon(a, b)
+	superset <- superset[!superset %in% c(a, b)]
+	a.reads <- specific.reads(a, superset, exon.shared, dt)
+	b.reads <- specific.reads(b, superset, exon.shared, dt)
+	diff1 <- a.reads[!q %in% b.reads$q, .N]
+	diff2 <- b.reads[!q %in% a.reads$q, .N]
+	return(c(nrow(a.reads), nrow(b.reads), diff1, diff2))
+}
+get.diff <- function(sol, comp, superset){
+	superset <- superset[!superset %in% c(sol, comp)]
+	diff.all <- diff.count(sol, comp)
+	diff.core <- diff.count(sol, comp, superset, core)
+	diff.noncore <- diff.count(sol, comp, superset, non.core)
+	return(c(
+	  'my.total' = diff.all[1], 
+	  'comp.total' = diff.all[2], 
+	  'my.alone' = diff.all[3],
+	  'comp.alone' = diff.all[4],
+	  'my.core' = diff.core[1],
+	  'comp.core' = diff.core[2],
+	  'missing.core' = diff.core[3],
+	  'extra.core' = diff.core[4],
+	  'my.noncore' = diff.noncore[1],
+	  'comp.noncore' = diff.noncore[2],
+	  'missing.noncore' = diff.noncore[3],
+	  'extra.noncore' = diff.noncore[4]
+	))
+}
+
+all.candidates <- unique(c(more$solution, more$competitor))
+all <- all[type %in% all.candidates]
+core <- core[type %in% all.candidates]
+non.core <- non.core[type %in% all.candidates]
+
 # temporaly switch all solutions with N/Q/L/etc suffix to non-suffixed version
 non.suffix <- more[grepl('\\D$', solution) & !grepl('\\D$', competitor), .(solution, competitor)][!duplicated(solution)]
 to.change <- non.suffix$competitor
@@ -249,23 +279,13 @@ while(length(bad) > 0){
 	comp.info <- data.table(do.call(rbind, mclapply(1:nrow(more), function(x){
 		sol <- more[x, solution]
 		comp <- more[x, competitor]
-		minus1 <- solution[solution != sol]
-		minus1.hit <- apply(mat2[, minus1], 1, max)
-		other1.hit <- sum(pmax(minus1.hit, mat2[, comp]))
-		missing1 <- max.hit - other1.hit
-		noncore.diff.sp <- get.diff.noncore(sol, comp, solution)
-		c(
-	  	'missing1' = missing1,
-	  	'my.noncore.sp' = noncore.diff.sp[1],
-	  	'comp.noncore.sp' = noncore.diff.sp[2],
-	  	'noncore.diff.sp' = noncore.diff.sp[3]
-		)
+		get.diff(sol, comp, solution)
 	})))
 	print(summary(comp.info))
-	bad <- which(comp.info[, missing1 * 5 + noncore.diff.sp < 0 & ((comp.noncore.sp > 15 & noncore.diff.sp < -5) | (missing1 < -2))])
+	bad <- which(comp.info[, missing.core * 5 + missing.noncore < 0 & ((comp.noncore > 15 & missing.noncore < -5) | (missing.core < -2))])
 	bad <- bad[!more[bad, competitor] %in% solution]
 	bad <- bad[!duplicated(more[bad, solution])]
-	bad <- bad[which.min(comp.info[bad, noncore.diff.sp])]
+	bad <- bad[which.min(comp.info[bad, missing.noncore])]
 	print(cbind(more[bad], comp.info[bad]))
 	better <- more[bad, competitor]
 	names(better) <- more[bad, solution]
@@ -279,79 +299,65 @@ max.hit <- sum(apply(mat2[, solution], 1, max))
 comp.info <- do.call(rbind, mclapply(1:nrow(more), function(x){
 	sol <- more[x, solution]
 	comp <- more[x, competitor]
-
-	my.total <- sum(mat2[, sol])
-	comp.total <- sum(mat2[, comp])
-
-	minus1 <- solution[solution != sol]
-	minus1.hit <- apply(mat2[, minus1], 1, max)
-	other1.hit <- sum(pmax(minus1.hit, mat2[, comp]))
-	missing1 <- max.hit - other1.hit
-
-	my.alone <- which(mat2[minus1.hit == 0, sol] > 0)
-	comp.alone <- which(mat2[minus1.hit == 0, comp] > 0)
-
-	gene <- sub('\\*.+', '', sol)
-    minus2 <- solution[-grep(gene, solution)]
-	minus2.hit <- apply(mat2[, minus2], 1, max)
-	other2.hit <- sum(pmax(minus2.hit, mat2[, comp]))
-	missing2 <- max.hit - other2.hit
-
-	my.noncore <- 0
-	comp.noncore <- 0
-	if(sol %in% colnames(mat.noncore)){
-		my.noncore <- sum(mat.noncore[, sol])
-	}
-	if(comp %in% colnames(mat.noncore)){
-		comp.noncore <- sum(mat.noncore[, comp])
-	}
-
-	noncore.diff <- get.diff.noncore(sol, comp)
-	noncore.diff.sp <- get.diff.noncore(sol, comp, solution)
-
-	c(
-	  'my.total' = my.total, 
-	  'comp.total' = comp.total, 
-	  'my.alone' = length(my.alone), 
-	  'comp.alone' = length(comp.alone), 
-	  'my.sp' = sum(!my.alone %in% comp.alone),
-	  'comp.sp' = sum(!comp.alone %in% my.alone),
-	  'missing1' = missing1,
-	  'missing2' = missing2, 
-	  'my.noncore.total' = my.noncore, 
-	  'comp.noncore.total' = comp.noncore, 
-	  'my.noncore' = noncore.diff[1],
-	  'comp.noncore' = noncore.diff[2],
-	  'noncore.diff' = noncore.diff[3],
-	  'my.noncore.sp' = noncore.diff.sp[1],
-	  'comp.noncore.sp' = noncore.diff.sp[2],
-	  'noncore.diff.sp' = noncore.diff.sp[3]
-	)
+	get.diff(sol, comp, solution)
 }))
 more <- cbind(more, comp.info)
-more[, missing := missing1]
+more[, missing := missing.core + missing.noncore - extra.core - extra.noncore]
 
-het <- more[rank == 1]
-het[, gene := sub('\\*.+', '', solution)]
-het[, sum := my.alone + my.noncore.sp]
-het.ratio <- het[, .(ratio = max(sum) / min(sum), min = solution[which.min(sum)]), by = gene]
-het.ratio <- het.ratio[ratio > 10]
-more[solution %in% het.ratio$min, rank := 1000L + rank]
+#reads <- rbind(core[type %in% solution], non.core[type %in% solution])
+#het.rate <- function(SD){
+#	if(nrow(SD) == 2){
+#		a <- SD[1, solution]
+#		b <- SD[2, solution]
+#		print(a)
+#		print(b)
+#		exon.shared <- shared.exon(a, b)
+#		print(exon.shared)
+#		a.rest <- solution[solution != a]
+#		b.rest <- solution[solution != b]
+#		a.reads <- reads[type == a & EXON %in% exon.shared] 
+#		a.reads.others <- reads[type %in% a.rest]
+#		a.reads <- a.reads[!q %in% a.reads.others$q]
+#		b.reads <- reads[type == b & EXON %in% exon.shared] 
+#		b.reads.others <- reads[type %in% b.rest]
+#		b.reads <- b.reads[!q %in% b.reads.others$q]
+#		print(c(nrow(a.reads), nrow(b.reads)))
+##		print(reads[q %in% a.reads$q & type %in% c(a, b)])
+#		if(b == 'A*24:03'){
+#			print(reads[q %in% b.reads$q & type %in% c(a, b)])
+#		}
+#	}else{
+#	}
+#}
+#
+#het <- more[rank == 1]
+#het[, gene := sub('\\*.+', '', solution)]
+#het[, het.rate(.SD), by = gene]
+#het[, sum := my.alone + my.noncore.sp]
+#het.ratio <- het[, .(ratio = max(sum) / min(sum), min = solution[which.min(sum)]), by = gene]
+#print(het.ratio)
+#het.ratio <- het.ratio[ratio > 10]
+##more[solution %in% het.ratio$min, rank := 1000L + rank]
 
-important <- function(sol){
-	sol <- sub(';.+', '', as.character(sol))
-	explained <- sum(apply(mat[, sol], 1, max))
-	delta <- explained - sapply(seq_along(sol), function(i) sum(apply(mat[, sol[-i]], 1, max)))
-	delta / explained * length(sol)
+important <- function(solution){
+	explained <- sum(apply(mat[, solution], 1, max))
+	delta <- explained - sapply(seq_along(solution), function(i) sum(apply(mat[, solution[-i]], 1, max)))
+	gene <- sub('\\*.+', '', solution)
+	gene.unique <- unique(gene)
+	weight <- ifelse(gene.unique %in% c('A', 'B', 'C'), 89+91, 89)
+	weight <- weight / sum(weight) / 2
+	names(weight) <- gene.unique
+	delta / explained / weight[gene]
 }
 more[, importance := 0]
 more[rank == 1, importance := important(solution)]
 more <- more[order(rank)]
 
 print(more[rank == 1])
+print(more[rank == 2])
 write.table(more, row = F, sep = '\t', quo = F, file = out.path)
 
 #wrong <- c('C*04:01', 'C*04:09N')
-#key.match <- dt[type %in% c(more[rank == 1, solution], wrong)]
+#key.match <- core[type %in% c(more[rank == 1, solution], wrong)]
 #noncore.match <- non.core[type %in% c(more[rank == 1, solution], wrong)]
 #save(key.match, noncore.match, file = 'temp.rda')
