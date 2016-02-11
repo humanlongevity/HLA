@@ -380,10 +380,12 @@ het.ratio <- het[, .(ratio = max(heter.reads) / min(heter.reads), min = solution
 het.ratio <- het.ratio[ratio >= 5]
 more[solution %in% het.ratio$min, rank := 1000L + rank]
 
+sols <- more$solution
+extra <- more[missing <= 0 & !competitor %in% sols, .(ambig = paste(competitor, collapse = ';')), by = solution]
+ambig <- extra$ambig
+names(ambig) <- extra$solution
+more[, ambig := ambig[solution]]
+
 print(more[rank == 1])
 write.table(more, row = F, sep = '\t', quo = F, file = out.path)
 
-#wrong <- c('C*04:01', 'C*04:09N')
-#key.match <- core[type %in% c(more[rank == 1, solution], wrong)]
-#noncore.match <- non.core[type %in% c(more[rank == 1, solution], wrong)]
-#save(key.match, noncore.match, file = 'temp.rda')
