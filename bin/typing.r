@@ -163,51 +163,13 @@ f.dir <- c(f.dir.hit, f.dir.bound, f.dir.heter, f.dir.reg)
 f.rhs <- c(f.rhs.hit, f.rhs.bound, f.rhs.heter, f.rhs.reg)
 
 # 1: initial solution candidate set via integer linear programming
-system.time(lps <- lp('max', f.obj, f.con, f.dir, f.rhs, int.vec = which(f.type == 'i'), binary.vec = which(f.type == 'b')))
+lps <- lp('max', f.obj, f.con, f.dir, f.rhs, int.vec = which(f.type == 'i'), binary.vec = which(f.type == 'b'))
 solution <- lps$solution[alleles]
 names(solution) <- allele.names
 solution <- solution[order(-solution)]
 solution <- solution[solution > 0]
 solution <- names(solution)
 print(solution)
-
-# 2: round 0 for better candidate searching
-max.hit <- sum(apply(mat2[, solution], 1, max))
-more <- do.call(rbind, mclapply(solution, function(s){
-	minus1 <- solution[solution != s]
-	minus1.hit <- apply(mat2[, minus1], 1, max)
-	gene <- sub('(.+?)\\*.+', '^\\1', s)
-	others <- allele.names[grepl(gene, allele.names)]
-	other.hit <- sapply(others, function(i) sum(pmax(minus1.hit, mat2[, i])))
-	cand <- data.table('rank' = 0, 'solution' = '', 'competitor' = as.character(others), 'missing' = max.hit - other.hit)
-    cand <- cand[order(missing)]
-	cand <- cand[1:max(sum(missing <= 2), min(50, length(others)))]
-
-	ambig <- cand[missing <= 2, competitor]
-	missing <- cand[missing <= 2, missing]
-	names(missing) <- ambig
-	sol <- s
-	if(length(ambig) > 1){
-		bests <- sort(ambig)
-		x <- as.integer(sub('.+?\\*(\\d+):.+', '\\1', bests))
-		y <- as.integer(sub('.+?\\*\\d+:(\\d+).*', '\\1', bests))
-		bests <- bests[order(x * 1e5 + y)]
-		total <- colSums(mat2[, bests, drop = F])
-		in.noncore <- bests %in% colnames(mat.noncore)
-		names(in.noncore) <- bests
-		total.noncore <- rep(0, length(bests))
-		total.noncore[in.noncore] <- colSums(mat.noncore[, bests[in.noncore], drop = F])
-		missing <- missing[bests]
-		bests <- bests[order(missing * 5 - total - total.noncore / 3)]
-
-		sol <- bests[1]
-		all <- unique(c(bests, cand$competitor))
-		cand <- cand[match(all, competitor)]
-	}
-	cand[, rank := 1:nrow(cand)]
-	cand[, solution := sol]
-	return(copy(cand))
-}))
 
 # functions for downstream ranking
 shared.exon <- function(a, b){
@@ -241,21 +203,90 @@ get.diff <- function(sol, comp, superset){
 	diff.all <- diff.count(sol, comp)
 	diff.core <- diff.count(sol, comp, superset, core)
 	diff.noncore <- diff.count(sol, comp, superset, non.core)
+	missing.core <- diff.core[3] - diff.core[4]
+	missing.noncore <- diff.noncore[3] - diff.noncore[4]
 	return(c(
+	  'missing' = missing.core + missing.noncore,
+	  'core' = missing.core,
+	  'noncore' = missing.noncore,
 	  'my.total' = diff.all[1], 
 	  'comp.total' = diff.all[2], 
 	  'my.alone' = diff.all[3],
 	  'comp.alone' = diff.all[4],
 	  'my.core' = diff.core[1],
 	  'comp.core' = diff.core[2],
-	  'missing.core' = diff.core[3],
-	  'extra.core' = diff.core[4],
+	  'my.core.sp' = diff.core[3],
+	  'comp.core.sp' = diff.core[4],
 	  'my.noncore' = diff.noncore[1],
 	  'comp.noncore' = diff.noncore[2],
-	  'missing.noncore' = diff.noncore[3],
-	  'extra.noncore' = diff.noncore[4]
+	  'my.noncore.sp' = diff.noncore[3],
+	  'comp.noncore.sp' = diff.noncore[4]
 	))
 }
+
+get.comp.info <- function(sols, comps, superset){
+	data.table(do.call(rbind, 
+		mclapply(1:length(sols), function(x) get.diff(sols[x], comps[x], superset))
+	))
+}
+
+get.better <- function(sols, comps, superset){
+	comp.info <- get.comp.info(sols, comps, superset)
+#	bad <- which(comp.info[, core * 5 + noncore < 0 & ((comp.noncore > 10 & noncore < -5) | (core < -2))])
+	bad <- which(ifelse(grepl('[A-Z]$', comps), 
+		comp.info[, core * 5 + noncore < 0 & (noncore < -10 | core <= -2)],
+		comp.info[, core * 5 + noncore < 0 & (noncore < -2  | core <= -2)]))
+	bad <- bad[!comps[bad] %in% superset]
+#	bad <- bad[!duplicated(more[bad, solution])]
+	if(length(bad) > 0){
+		bad <- bad[order(comp.info[bad, missing])]
+		better <- comps[bad]
+		names(better) <- sols[bad]
+		print(better)
+		return(better)
+	}else{
+		return(NULL)
+	}
+}
+
+# 2: round 0 for better candidate searching
+max.hit <- sum(apply(mat2[, solution], 1, max))
+more <- do.call(rbind, mclapply(solution, function(s){
+	minus1 <- solution[solution != s]
+	minus1.hit <- apply(mat2[, minus1], 1, max)
+	gene <- sub('(.+?)\\*.+', '^\\1', s)
+	others <- allele.names[grepl(gene, allele.names)]
+	other.hit <- sapply(others, function(i) sum(pmax(minus1.hit, mat2[, i])))
+	cand <- data.table('rank' = 0, 'solution' = '', 'competitor' = as.character(others), 'missing' = max.hit - other.hit)
+    cand <- cand[order(missing)]
+	cand <- cand[1:max(sum(missing <= 2), min(50, length(others)))]
+
+	ambig <- cand[missing <= 2, competitor]
+	missing <- cand[missing <= 2, missing]
+	names(missing) <- ambig
+	sol <- s
+	if(length(ambig) > 1){
+		bests <- sort(ambig)
+		x <- as.integer(sub('.+?\\*(\\d+):.+', '\\1', bests))
+		y <- as.integer(sub('.+?\\*\\d+:(\\d+).*', '\\1', bests))
+		bests <- bests[order(x * 1e5 + y)]
+		sol <- bests[1]
+
+		better <- 1
+		while(length(better) >= 1){
+			better <- get.better(rep(sol, length(ambig)), ambig, solution)
+			if(length(better) > 0){
+				sol <- better[1]
+				all <- unique(c(better, cand$competitor))
+				cand <- cand[match(all, competitor)]
+			}
+		}
+	}
+	cand[, rank := 1:nrow(cand)]
+	cand[, solution := sol]
+	return(copy(cand))
+}))
+
 
 all.candidates <- unique(c(more$solution, more$competitor))
 all <- all[type %in% all.candidates]
@@ -270,45 +301,38 @@ to.change <- to.change[!to.change %in% more$solution]
 print(to.change)
 more[solution %in% names(to.change), solution := to.change[solution]]
 
+
+
 # 3: better candidate search iterations
-bad <- 1
+better <- 1
 # TODO: it might keep running, ie: A -> B -> C -> A -> ...
-while(length(bad) > 0){
+while(length(better) > 0){
+#	solution <- more[rank == 1, solution]
+#	comp.info <- get.comp.info(more$solution, more$competitor, solution)
+#	bad <- which(comp.info[, core * 5 + noncore < 0 & ((comp.noncore > 15 & noncore < -5) | (core < -2))])
+#	bad <- bad[!more[bad, competitor] %in% solution]
+#	bad <- bad[!duplicated(more[bad, solution])]
+#	bad <- bad[which.min(comp.info[bad, noncore])]
+##	print(cbind(more[bad], comp.info[bad]))
+#	better <- more[bad, competitor]
+#	names(better) <- more[bad, solution]
+#	print(better)
+#	more[solution %in% names(better), solution := better[solution]]
 	solution <- more[rank == 1, solution]
-	max.hit <- sum(apply(mat2[, solution], 1, max))
-	comp.info <- data.table(do.call(rbind, mclapply(1:nrow(more), function(x){
-		sol <- more[x, solution]
-		comp <- more[x, competitor]
-		get.diff(sol, comp, solution)
-	})))
-	comp.info[, core := missing.core-extra.core]
-	comp.info[, noncore := missing.noncore-extra.noncore]
-	bad <- which(comp.info[, core * 5 + noncore < 0 & ((comp.noncore > 15 & noncore < -5) | (core < -2))])
-	bad <- bad[!more[bad, competitor] %in% solution]
-	bad <- bad[!duplicated(more[bad, solution])]
-	bad <- bad[which.min(comp.info[bad, noncore])]
-	print(cbind(more[bad], comp.info[bad]))
-	better <- more[bad, competitor]
-	names(better) <- more[bad, solution]
-	print(better)
+	better <- get.better(more$solution, more$competitor, solution)
+	better <- better[1]
 	more[solution %in% names(better), solution := better[solution]]
 }
 
 # 4: generate some diagnositic numbers
 solution <- more[rank == 1, solution]
-max.hit <- sum(apply(mat2[, solution], 1, max))
-comp.info <- do.call(rbind, mclapply(1:nrow(more), function(x){
-	sol <- more[x, solution]
-	comp <- more[x, competitor]
-	get.diff(sol, comp, solution)
-}))
-more <- cbind(more, comp.info)
-more[, missing := missing.core + missing.noncore - extra.core - extra.noncore]
+comp.info <- get.comp.info(more$solution, more$competitor, solution)
+more <- cbind(more[, .(rank, solution, competitor)], comp.info)
 
 het.reads <- function(sols){
 	if(length(sols) == 2){
 		diff <- get.diff(sols[1], sols[2], solution)
-		return(as.double(diff[3:4]))
+		return(as.double(c(diff['my.alone'], diff['comp.alone'])))
 	}else{
 		return(as.double(1))
 	}
@@ -344,7 +368,7 @@ important <- function(solution){
 	weight <- ifelse(gene.unique %in% c('A', 'B', 'C'), 89+91, 89)
 	weight <- weight / sum(weight) / 2
 	names(weight) <- gene.unique
-	delta / explained / weight[gene]
+	round(delta / explained / weight[gene], 3)
 }
 more[, importance := 0]
 more[rank == 1, importance := important(solution)]
