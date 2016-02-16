@@ -27,14 +27,13 @@ def main():
 		data = line.split('\t')
 		if data[0] == '1':
 			allele = re.sub(suffix, '', data[1])
-			if 'DPB' not in allele:
-				gene = allele[0:allele.index('*')]
-				back[gene] = allele
-				if gene in count:
-					count[gene] += 1
-				else:
-					count[gene] = 1
-				hla.append(allele)
+			gene = allele[0:allele.index('*')]
+			back[gene] = allele
+			if gene in count:
+				count[gene] += 1
+			else:
+				count[gene] = 1
+			hla.append(allele)
 
 	for gene in count:
 		if count[gene] == 1:
