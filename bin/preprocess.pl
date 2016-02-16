@@ -1,4 +1,5 @@
 #!/usr/bin/env perl
+# Author: Xie Chao
 use strict;
 
 my $Q = 20;

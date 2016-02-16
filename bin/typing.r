@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+# Author: Xie Chao
 
 args <- commandArgs()
 code.source <- sub('--file=', '', args[4])

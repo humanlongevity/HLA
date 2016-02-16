@@ -1,4 +1,5 @@
 #!/bin/bash
+# Author: Xie Chao
 set -e
 
 S3=$1
