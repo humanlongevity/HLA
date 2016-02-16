@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -e
 
 DOCKER=$1
 BAM_FILE=$2
