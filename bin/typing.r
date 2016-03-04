@@ -252,6 +252,7 @@ get.better <- function(sols, comps, superset){
 
 # 2: round 0 for better candidate searching
 max.hit <- sum(apply(mat2[, solution], 1, max))
+cat("pulling non-core exons in\n")
 more <- do.call(rbind, mclapply(solution, function(s){
 	minus1 <- solution[solution != s]
 	minus1.hit <- apply(mat2[, minus1], 1, max)
@@ -273,11 +274,16 @@ more <- do.call(rbind, mclapply(solution, function(s){
 		bests <- bests[order(x * 1e5 + y)]
 		sol <- bests[1]
 
+		history <- sol
 		better <- 1
 		while(length(better) >= 1){
 			better <- get.better(rep(sol, length(ambig)), ambig, solution)
 			if(length(better) > 0){
 				sol <- better[1]
+				if(sol %in% history){
+					break
+				}
+				history <- c(history, sol)
 				all <- unique(c(better, cand$competitor))
 				cand <- cand[match(all, competitor)]
 			}
@@ -302,27 +308,24 @@ to.change <- to.change[!to.change %in% more$solution]
 print(to.change)
 more[solution %in% names(to.change), solution := to.change[solution]]
 
-
-
 # 3: better candidate search iterations
+cat("refining solution\n")
 better <- 1
 # TODO: it might keep running, ie: A -> B -> C -> A -> ...
+history <- more[rank == 1, solution]
 while(length(better) > 0){
-#	solution <- more[rank == 1, solution]
-#	comp.info <- get.comp.info(more$solution, more$competitor, solution)
-#	bad <- which(comp.info[, core * 5 + noncore < 0 & ((comp.noncore > 15 & noncore < -5) | (core < -2))])
-#	bad <- bad[!more[bad, competitor] %in% solution]
-#	bad <- bad[!duplicated(more[bad, solution])]
-#	bad <- bad[which.min(comp.info[bad, noncore])]
-##	print(cbind(more[bad], comp.info[bad]))
-#	better <- more[bad, competitor]
-#	names(better) <- more[bad, solution]
-#	print(better)
-#	more[solution %in% names(better), solution := better[solution]]
 	solution <- more[rank == 1, solution]
 	better <- get.better(more$solution, more$competitor, solution)
-	better <- better[1]
-	more[solution %in% names(better), solution := better[solution]]
+	if(length(better) >= 1)
+	{
+		better <- better[1]
+		more[solution %in% names(better), solution := better[solution]]
+		if(better %in% history)
+		{
+			break
+		}
+		history <- c(history, better)
+	}
 }
 
 # 4: generate some diagnositic numbers
