@@ -19,6 +19,18 @@ all <- fread(align.path)
 setnames(all, c('q', 'qpos0', 'qpos', 't', 'tlen', 'ts', 'te', 'mis', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
 all[, specific := as.double(specific)]
 all <- all[mis == 0]
+print(nrow(all))
+
+if(length(unique(all[, q])) > 20000){
+	reads <- all[, .(q, type)]
+	reads[, gene := sub('\\*.+', '', type)]
+	reads[, q := sub('/[12]$', '', q)]
+	reads <- unique(reads[, .(q, gene)])
+	setkey(reads, gene)
+	keep <- reads[, .(q = sample(q, min(3000, .N))), by = gene]
+	all <- all[sub('/[12]$', '', q) %in% keep[, q]]
+}
+print(nrow(all))
 
 # for HLA alleles with frame shift variants, we require reads span over the frame shift site
 frame.shift <- fread(sprintf('%s/../data/hla.shift', data.dir))
@@ -91,8 +103,13 @@ mat.noncore <- as.matrix(mat.noncore)
 # filter out types with too few reads
 counts <- colSums(mat)
 summary(counts)
-cand <- counts > quantile(counts, 0.25) 
-mat <- mat[, cand]
+type.counts <- data.table(type = names(counts), counts)
+type.counts[, gene := sub('\\*.+', '', type)]
+print(type.counts[, summary(counts), by = gene])
+cand <- type.counts[, .(type = type[counts > quantile(counts, 0.3)]), by = gene][, type]
+print(type.counts[type %in% cand, summary(counts), by = gene])
+#cand <- counts > quantile(counts, 0.25) 
+mat <- mat[, colnames(mat) %in% cand]
 ## filter out reads with no alleles mapped to
 counts <- rowSums(mat)
 summary(counts)
@@ -115,12 +132,11 @@ heter <- length(all.zero)
 zero.m <- t(matrix(all.zero, nrow = heter, ncol = nr))
 yindex <- matrix(c(1:nr, na + 1:nr), ncol = 2)
 gindex <- matrix(c(1:nr, na + nr + 1:nr), ncol = 2)
-gamma <- 0.01
-beta <- 0.009
+beta <- 0.002
 
 # ILP objective
-f.obj <-  c(rep(-gamma, na), weight,      -beta * weight, 0  )
-f.type <- c(rep('b', na),    rep('b',nr), rep('i',   nr), 'i')
+f.obj <-  c(rep(0, na),   weight,      -beta * weight, 0  )
+f.type <- c(rep('i', na), rep('b',nr), rep('i',   nr), 'i')
 
 # constraints for number of chromosomes
 f.con.bound <- t(matrix(all.zero, nrow = heter, ncol = n.genes))
@@ -264,8 +280,9 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	cand <- cand[1:max(sum(missing <= 2), min(50, length(others)))]
 
 	ambig <- cand[missing <= 2, competitor]
-	missing <- cand[missing <= 2, missing]
-	names(missing) <- ambig
+	ambig <- ambig[ambig == s | (! ambig %in% solution)]
+#	missing <- cand[missing <= 2, missing]
+#	names(missing) <- ambig
 	sol <- s
 	if(length(ambig) > 1){
 		bests <- sort(ambig)
