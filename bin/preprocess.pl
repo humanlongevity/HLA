@@ -4,7 +4,11 @@ use strict;
 
 my $Q = 20;
 my $F = 5;
-my $M = 100;
+my $M = 70;
+my $DEDUP = 0;
+
+my %done;
+my $skipped = 0;
 
 while(<>)
 {
@@ -13,6 +17,7 @@ while(<>)
 	my $flag = $fields[1];
 	my $seq = $fields[9];
 	my $qual = $fields[10];
+
 
 	# reverse complement if the read was flipped in the BAM
 	if($flag & 16){
@@ -67,6 +72,16 @@ while(<>)
 	# discard reads if contains N
 	next unless $seq =~ m/^[ATGC]+$/;
 
+	if($DEDUP){
+		# deduplication. this is purposely put here rather than begining of the block
+		# may need to work out how to handle pair end reads
+		if($done{$seq}){
+			$skipped++;
+			next;
+		}
+		$done{$seq} = 1;
+	}
+
 	# name reads with /1 or /2
 	if($flag & 128){
 		$name .= '/2';
@@ -75,5 +90,9 @@ while(<>)
 	}
 
 	print "\@$name\n$seq\n+\n$qual\n";
+}
+
+if($DEDUP){
+	print STDERR "skipped $skipped duplicated reads\n";
 }
 
