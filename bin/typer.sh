@@ -17,8 +17,10 @@ TEMP=temp-$RANDOM-$RANDOM-$RANDOM
 
 echo "Extracting reads from S3"
 samtools view -u $S3 chr6:29886751-33090696 > $TEMP
-samtools view -L $BIN/../data/hla.bed $TEMP | $BIN/preprocess.pl > $OUT/$ID.fq
+samtools view -L $BIN/../data/hla.bed $TEMP > ${TEMP}.sam
+$BIN/preprocess.pl ${TEMP}.sam > $OUT/$ID.fq
 rm $TEMP
+rm ${TEMP}.sam
 echo "Aligning reads to IMGT database"
 diamond blastx -t . -C 20000 --index-mode 2 --seg no --min-score 10 --top 20 -c 1 -v -d $BIN/../data/hla -q $OUT/$ID.fq -a $OUT/$ID.daa
 echo "Preparing data for the typing algorithm"

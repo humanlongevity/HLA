@@ -5,7 +5,11 @@ use strict;
 my $Q = 20;
 my $F = 5;
 my $M = 70;
+
 my $DEDUP = 0;
+if(`wc -l $ARGV[0]` > 50000){
+	$DEDUP = 1;
+}
 
 my %done;
 my $skipped = 0;
