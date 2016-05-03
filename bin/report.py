@@ -19,7 +19,7 @@ def main():
 	creation_time = datetime.utcnow().isoformat()
 	creation_time = creation_time[0:creation_time.index('.')] + 'Z'
 
-	suffix = re.compile(r'\D+$')
+#	suffix = re.compile(r'\D+$')
 
 	hla = list()
 	count = {}
@@ -27,7 +27,8 @@ def main():
 	for line in args.input:
 		data = line.split('\t')
 		if data[0] == '1':
-			allele = re.sub(suffix, '', data[1])
+#			allele = re.sub(suffix, '', data[1])
+			allele = data[1]
 			gene = allele[0:allele.index('*')]
 			back[gene] = allele
 			if gene in count:
