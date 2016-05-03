@@ -7,6 +7,7 @@ if(length(args) != 7) {
 	cat("usage:", code.source, "input.tsv output.tsv\n")
 	q()
 }
+set.seed(131)
 data.dir <- dirname(code.source)
 align.path <- args[6]
 out.path <- args[7]
@@ -251,7 +252,7 @@ get.better <- function(sols, comps, superset){
 	comp.info <- get.comp.info(sols, comps, superset)
 #	bad <- which(comp.info[, core * 5 + noncore < 0 & ((comp.noncore > 10 & noncore < -5) | (core < -2))])
 	bad <- which(ifelse(grepl('[A-Z]$', comps), 
-		comp.info[, core * 5 + noncore < 0 & (noncore < -10 | core <= -2)],
+		comp.info[, noncore < -10 & core <= 0],
 		comp.info[, core * 5 + noncore < 0 & (noncore < -2  | core <= -2)]))
 	bad <- bad[!comps[bad] %in% superset]
 #	bad <- bad[!duplicated(more[bad, solution])]
