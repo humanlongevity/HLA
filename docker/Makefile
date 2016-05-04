@@ -1,19 +1,45 @@
 NS = docker-dev.hli.io/xchao
-VERSION = 0.3
-
+TAG = 0.4
 NAME = hla
-BAM_FILE = s3://hli-processed/processed/220033/isis_alignment_and_variant_calling/176444255/Data/Intensities/BaseCalls/Alignment/176444255_S1.bam
-SAMPLE_ID = 176444255
-
-.PHONY: all
-all: build push
 
 build:
-	rsync -avP ../bin ../data .
-	docker build -t $(NS)/$(NAME):$(VERSION) -f Dockerfile . 
+	docker build -t $(NS)/$(NAME)-dev -f dev.dockerfile .
+	docker tag $(NS)/$(NAME)-dev $(NS)/$(NAME)-dev:$(TAG)
 
-push:
-	docker push $(NS)/$(NAME):$(VERSION)
+deploy:
+	sed "s|BASEDOCKERNAME|$(NS)/$(NAME)-dev:$(TAG)|" < deploy.dockerfile > deploy.filled.dockerfile
+	rsync -avP ../bin ../data ./
+	docker build -t $(NS)/$(NAME) -f deploy.filled.dockerfile .
+	docker tag $(NS)/$(NAME) $(NS)/$(NAME):$(TAG)
+	rm -r bin/ data/
 
-test:
-	./hla.sh $(NS)/$(NAME):$(VERSION) $(BAM_FILE) $(SAMPLE_ID)
+push: build deploy
+	docker push $(NS)/$(NAME)-dev
+	docker push $(NS)/$(NAME)-dev:$(TAG)
+	docker push $(NS)/$(NAME)
+	docker push $(NS)/$(NAME):$(TAG)
+
+shell:
+	docker run --rm -ti \
+		-v ${HOME}/.aws:/root/.aws:ro \
+		-v ${TMPDIR}:/scratch \
+		-v `pwd`:/work \
+		-w /work \
+		-e TMPDIR=/scratch \
+		--net=host \
+		--entrypoint='/bin/bash' \
+		$(NS)/$(NAME)-dev:$(TAG)
+
+shell2:
+	docker run --rm -ti \
+		-v ${HOME}/.aws:/root/.aws:ro \
+		-v ${TMPDIR}:/scratch \
+		-v `pwd`:/work \
+		-w /work \
+		-e TMPDIR=/scratch \
+		--net=host \
+		--entrypoint='/bin/bash' \
+		$(NS)/$(NAME):$(TAG)
+
+clean:
+	rm -rf _candidates deploy.filled.dockerfile
