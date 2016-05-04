@@ -6,7 +6,7 @@ from datetime import datetime
 import argparse
 import re
 
-version = '1.0'
+version = '1.1'
 
 def main():
 	parser = argparse.ArgumentParser()
