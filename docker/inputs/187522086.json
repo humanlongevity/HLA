@@ -1,0 +1,4 @@
+{
+	"sample_id": "187522086",
+	"input_bam_path": "s3://hli-processed/processed/101174/isis_alignment_and_variant_calling/187522086/Data/Intensities/BaseCalls/Alignment/187522086_S1.bam"
+}

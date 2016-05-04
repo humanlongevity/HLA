@@ -47,3 +47,4 @@ RUN echo 'install.packages("devtools", repos="http://cran.r-project.org", clean=
 	&& echo 'devtools::install_version("data.table", "1.9.6", repos="http://cran.r-project.org", clean=TRUE);q()' | sudo R --no-save \
 	&& echo 'devtools::install_version("lpSolve", "5.6.13", repos="http://cran.r-project.org", clean=TRUE);q()' | sudo R --no-save
 
+ENTRYPOINT ["python", "/opt/bin/run.py"]

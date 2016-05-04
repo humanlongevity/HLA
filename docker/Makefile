@@ -41,5 +41,11 @@ shell2:
 		--entrypoint='/bin/bash' \
 		$(NS)/$(NAME):$(TAG)
 
+test-integration:
+	python integration_tests.py --bind-source --image=$(NS)/$(NAME)-dev:$(TAG)
+
+test-deploy:
+	python integration_tests.py --image=$(NS)/$(NAME):$(TAG)
+
 clean:
 	rm -rf _candidates deploy.filled.dockerfile
