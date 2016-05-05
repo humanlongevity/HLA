@@ -61,6 +61,7 @@ if __name__ == '__main__':
             -v $HOME/.aws:/root/.aws:ro \
             -v $TMPDIR:/scratch \
             -e TMPDIR=/scratch \
+            -w /scratch \
             {} \
             --net=host \
             {} {}'.format(' '.join(bind_mounts), args.image, ' '.join(cli_args))
