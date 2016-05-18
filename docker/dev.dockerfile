@@ -38,7 +38,7 @@ RUN wget https://github.com/samtools/samtools/releases/download/1.3/samtools-1.3
 	&& cd .. \
 	&& rm -rf samtools-1.3*
 
-RUN wget https://github.com/bbuchfink/diamond/releases/download/v0.7.12/diamond-linux64.tar.gz \
+RUN wget https://github.com/bbuchfink/diamond/releases/download/v0.7.10/diamond-linux64.tar.gz \
 	&& tar xzf diamond-linux64.tar.gz \
 	&& mv diamond /usr/bin/ \
 	&& rm diamond-linux64.tar.gz
