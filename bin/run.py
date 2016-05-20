@@ -34,9 +34,9 @@ def output_file(in_path, out_path):
         bucket, key, _ = split_s3_path(out_path)
         transfer.upload_file(in_path, bucket, key, extra_args={'ServerSideEncryption': 'AES256'})
     else:
-    	out_dir = os.path.dirname(out_path)
-    	if not os.path.exists(out_dir):
-    		os.makedirs(out_dir)
+        out_dir = os.path.dirname(out_path)
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
         shutil.copy(in_path, out_path)
 
 if __name__ == '__main__':
@@ -53,6 +53,10 @@ if __name__ == '__main__':
     check_call([bin_path, args.input_bam_path, args.sample_id])
     out_final_path = join(args.output_path, 'report-'+args.sample_id+'-hla.json')
     output_file(out_local_path, out_final_path)
+    done_path = join('hla-' + args.sample_id, '_SUCCESS')
+    open(done_path, 'a').close()
+    done_final_path = join(args.output_path, '_SUCCESS')
+    output_file(done_path, done_final_path)
 
     logger.info('Successfully wrote output file')
     logger.info('HLA typing: shutting down.')

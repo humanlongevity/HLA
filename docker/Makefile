@@ -1,5 +1,5 @@
 NS = docker-dev.hli.io/xchao
-TAG = 0.4.1
+TAG = 0.4.2
 NAME = hla
 
 build:
