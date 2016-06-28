@@ -66,6 +66,7 @@ while(<IN>)
 	my ($qu, $target, $identity, $len, $mis, $gap, $qs, $qe, $ts, $te, $e, $score) = split(/\t/, $_);
 	next unless $identity == 100;
 	my $q = "$qu==$qs-$qe";
+	my $qtag = "$qu==".abs($qs - $qe);
 	my $len = $te - $ts + 1;
 	my $g = $is_gene{$target};
 #	if($len > $mlen{$g}->{$q})
@@ -76,7 +77,7 @@ while(<IN>)
 		$match{$g}->{$q} = [$target, $qs, $qe, $ts, $te, $len];
 	}
 	$matched{$target}++ if $len >= $mlen{$g}->{$q};
-	$nonspec{$q}++ if not($tseq{$target}) && $len >= $mlen{$g}->{$q};
+	$nonspec{$qtag}++ if not($tseq{$target}) && $len >= $mlen{$g}->{$q};
 }
 print STDERR "\tmatched to ", scalar(keys %matched), " HLA exons\n";
 print STDERR "\t", scalar(keys %nonspec), " reads matched to HLA types not in the MSA file\n";
@@ -100,8 +101,9 @@ for my $g(keys %match)
 	{
 		my ($target, $qs, $qe, $ts, $te, $mlen) = @{$match{$g}->{$q}};
 		my $qu = $1 if $q =~ m/(.+)==.+?/;
+		my $qtag = "$qu==".abs($qs - $qe);
 		next if $mlen < $mLEN{$qu};
-		my $spe = $nonspec{$q} ? 0 : 1;
+		my $spe = $nonspec{$qtag} ? 0 : 1;
 
 		my $qpart = "$qlen{$qu}:$qs-$qe";
 		my $qseq = $qseq{$qu};
