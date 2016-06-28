@@ -32,6 +32,7 @@ if(length(unique(all[, q])) > 20000){
 	all <- all[sub('/[12]$', '', q) %in% keep[, q]]
 }
 print(nrow(all))
+print(length(unique(all[,q])))
 
 # for HLA alleles with frame shift variants, we require reads span over the frame shift site
 frame.shift <- fread(sprintf('%s/../data/hla.shift', data.dir))
@@ -72,13 +73,37 @@ all[qp %in% specific.pairs, specific := 1]
 
 # only keep Class I (A, B, C) and DRB1, DQB1, and DPB1
 keep <- c('ClassI', 'DRB1', 'DQB1', 'DPB1')
+
+# remove alleles with bad spread coverage on core exons
+n.core.reads <- all[msa %in% keep & (EXON == 'E2' | (EXON == 'E3' & msa == 'ClassI')), length(unique(q))]
+print(n.core.reads)
+filter.by.spread <- F
+if(n.core.reads >= 1000)
+{
+	core.cover <- all[
+		msa %in% keep & (EXON == 'E2' | (EXON == 'E3' & msa == 'ClassI')), 
+		.(
+			tlen[1], 
+			cover = sum(IRanges::width(IRanges::reduce(IRanges::IRanges(ts, te))))
+		), 
+		by = .(type, EXON)
+	]
+	core.cover[, gene := sub('\\*.+', '', type)]
+	core.cover[, max.cover := max(cover/V1), by = .(gene, EXON)]
+	bad.alleles <- core.cover[cover/V1 < 0.9 * max.cover[1], type, by = .(type, EXON)][, type]
+	print(length(bad.alleles))
+	all <- all[!type %in% bad.alleles]
+	filter.by.spread <- T
+}
+print(nrow(all))
+
+# only keep Class I (A, B, C) and DRB1, DQB1, and DPB1
 ignore <- all[! msa %in% keep, q]
 all <- all[msa %in% keep]
 all[q %in% ignore, specific := 0]
 #all[q %in% ignore, specific := 0.1]
 #all[specific == 0, specific := 0.1]
 all <- all[specific > 0]
-
 
 # separate core and non-core exons
 print(nrow(all))
@@ -88,37 +113,45 @@ core <- all[(msa == 'ClassI' & EXON %in% c('E2', 'E3')) | (msa != 'ClassI' & EXO
 print(nrow(core))
 
 # matrix for core exon alignments
+cat('dcast\n')
 mat <- dcast(core, q ~ type, value.var = 'specific', fun.aggregate = max, fill = 0)
+cat('done dcast\n')
 qs <- mat$q
 mat[, q := NULL]
 mat <- as.matrix(mat)
+cat('weight\n')
 weight <- apply(mat, 1, max)
+cat('done weight\n')
 mat2 <- mat
-mat[mat > 0] <- 1
+cat('set to 1\n')
+mat[mat > 0 & mat < 1] <- 1
+cat('done set to 1\n')
 
 # matrix for non-core exon alignments
+cat('dcast2\n')
 mat.noncore <- dcast(non.core, q ~ type, value.var = 'specific', fun.aggregate = max, fill = 0)
 mat.noncore[, q := NULL]
 mat.noncore <- as.matrix(mat.noncore)
+cat('done dcast2\n')
 
 # filter out types with too few reads
-counts <- colSums(mat)
-summary(counts)
-type.counts <- data.table(type = names(counts), counts)
-type.counts[, gene := sub('\\*.+', '', type)]
-print(type.counts[, summary(counts), by = gene])
-cand <- type.counts[, .(type = type[counts > quantile(counts, 0.3)]), by = gene][, type]
-print(type.counts[type %in% cand, summary(counts), by = gene])
-#cand <- counts > quantile(counts, 0.25) 
-mat <- mat[, colnames(mat) %in% cand]
+if(!filter.by.spread)
+{
+	counts <- colSums(mat)
+	type.counts <- data.table(type = names(counts), counts)
+	type.counts[, gene := sub('\\*.+', '', type)]
+#	print(type.counts[, summary(counts), by = gene])
+	cand <- type.counts[, .(type = type[counts > quantile(counts, 0.3)]), by = gene][, type]
+#	print(type.counts[type %in% cand, summary(counts), by = gene])
+	mat <- mat[, colnames(mat) %in% cand]
+}
 ## filter out reads with no alleles mapped to
 counts <- rowSums(mat)
-summary(counts)
+#summary(counts)
 cand <- counts > 0
 mat <- mat[cand, ]
 qs <- qs[cand]
 weight <- weight[cand]
-
 
 # preparing to setup Integer Linear Programming
 allele.names <- colnames(mat)
@@ -181,7 +214,9 @@ f.dir <- c(f.dir.hit, f.dir.bound, f.dir.heter, f.dir.reg)
 f.rhs <- c(f.rhs.hit, f.rhs.bound, f.rhs.heter, f.rhs.reg)
 
 # 1: initial solution candidate set via integer linear programming
+cat('lpsolve\n')
 lps <- lp('max', f.obj, f.con, f.dir, f.rhs, int.vec = which(f.type == 'i'), binary.vec = which(f.type == 'b'))
+cat('done lpsolve\n')
 solution <- lps$solution[alleles]
 names(solution) <- allele.names
 solution <- solution[order(-solution)]
@@ -269,6 +304,7 @@ get.better <- function(sols, comps, superset){
 
 # 2: round 0 for better candidate searching
 max.hit <- sum(apply(mat2[, solution], 1, max))
+#save.image('temp-2.rda')
 cat("pulling non-core exons in\n")
 more <- do.call(rbind, mclapply(solution, function(s){
 	minus1 <- solution[solution != s]
@@ -411,3 +447,4 @@ more[, ambig := ambig[solution]]
 print(more[rank == 1])
 write.table(more, row = F, sep = '\t', quo = F, file = out.path)
 
+#save.image('temp2.rda')
