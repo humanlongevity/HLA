@@ -202,9 +202,12 @@ for my $g(keys %match)
 			}
 			$done2{$qu}->{$t} = 1;
 			my $dist = 1000;
+
+			my $prefix = substr($tseq{$t}, 0, $start);
+			my $tstart = scalar($prefix =~ s/\w//g) * 3;
 			for my $tcode(keys %{$dna{$t}})
 			{
-				my $tt = substr($tcode, ($ts-1)*3, ($te-$ts+1)*3);
+				my $tt = substr($tcode, $tstart, ($te-$ts+1)*3);
 #				my $edit = distance($qcode, $tt);
 				my $edit = $qcode eq $tt ? 0 : 1;
 				$dist = $edit if $edit < $dist;
