@@ -325,7 +325,7 @@ more <- do.call(rbind, mclapply(solution, function(s){
 		bests <- sort(ambig)
 		x <- as.integer(sub('.+?\\*(\\d+):.+', '\\1', bests))
 		y <- as.integer(sub('.+?\\*\\d+:(\\d+).*', '\\1', bests))
-		bests <- bests[order(x * 1e5 + y)]
+		bests <- bests[order(y * 5 + x)]
 		sol <- bests[1]
 
 		history <- sol
