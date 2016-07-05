@@ -386,52 +386,10 @@ while(length(better) > 0){
 solution <- more[rank == 1, solution]
 comp.info <- get.comp.info(more$solution, more$competitor, solution)
 more <- cbind(more[, .(rank, solution, competitor)], comp.info)
-
-het.reads <- function(sols){
-	if(length(sols) == 2){
-		diff <- get.diff(sols[1], sols[2], solution)
-		return(as.double(c(diff['my.alone'], diff['comp.alone'])))
-	}else{
-		return(as.double(1))
-	}
-}
-het.cover <- function(sols){
-	if(length(sols) == 2){
-		cat(sols, fill = T)
-		exon.shared <- shared.exon(sols[1], sols[2])
-		a <- specific.reads(sols[1], solution, exon.shared)
-		b <- specific.reads(sols[2], solution, exon.shared)
-		a.cover <- 0
-		b.cover <- 0
-		for(e in unique(c(a$EXON, b$EXON))){
-			cat(sols, e, fill = T)
-			a.range <- IRanges::IRanges(a[EXON == e, ts], a[EXON == e, te])
-			a.cover <- a.cover + sum(IRanges::width(IRanges::reduce(a.range)))
-			b.range <- IRanges::IRanges(b[EXON == e, ts], b[EXON == e, te])
-			b.cover <- b.cover + sum(IRanges::width(IRanges::reduce(b.range)))
-		}
-		return(as.double(c(a.cover, b.cover)))
-	}else{
-		return(as.double(1))
-	}
-}
-more[rank == 1, heter.reads := het.reads(solution), by = .(sub('\\*.+', '', solution))]
-#more[rank == 1, heter.cover := het.cover(solution), by = .(sub('\\*.+', '', solution))]
-
-important <- function(solution){
-	explained <- sum(apply(mat[, solution], 1, max))
-	delta <- explained - sapply(seq_along(solution), function(i) sum(apply(mat[, solution[-i]], 1, max)))
-	gene <- sub('\\*.+', '', solution)
-	gene.unique <- unique(gene)
-	weight <- ifelse(gene.unique %in% c('A', 'B', 'C'), 89+91, 89)
-	weight <- weight / sum(weight) / 2
-	names(weight) <- gene.unique
-	round(delta / explained / weight[gene], 3)
-}
+more[, heter.reads := 0]
 more[, importance := 0]
-more[rank == 1, importance := important(solution)]
-more <- more[order(rank)]
 
+# detect ambigous calls
 freq <- fread(sprintf('%s/../data/hla.freq', data.dir))
 sols <- more[rank == 1, unique(solution)]
 pop <- freq[allele %in% sols, .(r = median(rank)), by = population][r == min(r), population]
@@ -501,6 +459,49 @@ extra <- do.call(rbind, lapply(sols, function(sol){
 }))
 more <- rbind(extra, more)
 setorder(more, rank)
+
+het.reads <- function(sols){
+	if(length(sols) == 2){
+		diff <- get.diff(sols[1], sols[2], solution)
+		return(as.double(c(diff['my.alone'], diff['comp.alone'])))
+	}else{
+		return(as.double(1))
+	}
+}
+het.cover <- function(sols){
+	if(length(sols) == 2){
+		cat(sols, fill = T)
+		exon.shared <- shared.exon(sols[1], sols[2])
+		a <- specific.reads(sols[1], solution, exon.shared)
+		b <- specific.reads(sols[2], solution, exon.shared)
+		a.cover <- 0
+		b.cover <- 0
+		for(e in unique(c(a$EXON, b$EXON))){
+			cat(sols, e, fill = T)
+			a.range <- IRanges::IRanges(a[EXON == e, ts], a[EXON == e, te])
+			a.cover <- a.cover + sum(IRanges::width(IRanges::reduce(a.range)))
+			b.range <- IRanges::IRanges(b[EXON == e, ts], b[EXON == e, te])
+			b.cover <- b.cover + sum(IRanges::width(IRanges::reduce(b.range)))
+		}
+		return(as.double(c(a.cover, b.cover)))
+	}else{
+		return(as.double(1))
+	}
+}
+more[rank == 0, heter.reads := het.reads(solution), by = .(sub('\\*.+', '', solution))]
+
+important <- function(solution){
+	explained <- sum(apply(mat[, solution], 1, max))
+	delta <- explained - sapply(seq_along(solution), function(i) sum(apply(mat[, solution[-i]], 1, max)))
+	gene <- sub('\\*.+', '', solution)
+	gene.unique <- unique(gene)
+	weight <- ifelse(gene.unique %in% c('A', 'B', 'C'), 89+91, 89)
+	weight <- weight / sum(weight) / 2
+	names(weight) <- gene.unique
+	round(delta / explained / weight[gene], 3)
+}
+more[rank == 0, importance := important(solution)]
+more <- more[order(rank)]
 
 het <- more[rank == 0]
 het[, gene := sub('\\*.+', '', solution)]
