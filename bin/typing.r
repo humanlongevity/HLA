@@ -438,7 +438,7 @@ pop <- freq[allele %in% sols, .(r = median(rank)), by = population][r == min(r),
 freq <- freq[population %in% pop][, .(rank = median(rank)), by = allele]
 setkey(freq, allele)
 print(freq[sols])
-more[, ambig := NA]
+more[, ambig := 'NA']
 ambig.n.reads <- 2
 ambig.core.ratio <- 0.7
 extra <- do.call(rbind, lapply(sols, function(sol){
