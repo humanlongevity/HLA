@@ -26,7 +26,7 @@ def main():
 	back = {}
 	for line in args.input:
 		data = line.split('\t')
-		if data[0] == '1':
+		if data[0] == '0':
 #			allele = re.sub(suffix, '', data[1])
 			allele = data[1]
 			gene = allele[0:allele.index('*')]

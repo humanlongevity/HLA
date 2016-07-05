@@ -432,19 +432,84 @@ more[, importance := 0]
 more[rank == 1, importance := important(solution)]
 more <- more[order(rank)]
 
-het <- more[rank == 1]
+freq <- fread(sprintf('%s/../data/hla.freq', data.dir))
+sols <- more[rank == 1, unique(solution)]
+pop <- freq[allele %in% sols, .(r = median(rank)), by = population][r == min(r), population]
+freq <- freq[population %in% pop][, .(rank = median(rank)), by = allele]
+setkey(freq, allele)
+print(freq[sols])
+more[, ambig := NA]
+ambig.n.reads <- 2
+ambig.core.ratio <- 0.7
+extra <- do.call(rbind, lapply(sols, function(sol){
+	final <- more[rank == 1 & solution == sol]
+	core.cutoff <- more[solution == sol, ambig.core.ratio * max(my.core)]
+	cands <- more[
+			solution == sol & 
+			missing <= ambig.n.reads & 
+			core <= ambig.n.reads & 
+			comp.alone >= my.alone &
+			comp.core >= core.cutoff, 
+		competitor]
+	cands <- cands[!cands %in% sols]
+	if(length(cands) >= 1){
+		cands <- c(sol, cands)
+		ord <- freq[cands]
+		ord[, field1 := as.numeric(sub('.+\\*(\\d+):(\\d+)\\D*?$', '\\1', allele))]
+		ord[, field2 := as.numeric(sub('.+\\*(\\d+):(\\d+)\\D*?$', '\\2', allele))]
+		setorder(ord, rank, field2, field1, na.last = T)
+		print(ord)
+		best <- ord[1, allele]
+		if(ord[1, is.na(rank) | rank >= 100]){
+			best <- sol
+		}
+		my.ambig = paste(ord[allele != best, allele], collapse = ';')
+		if(best == sol){
+			final[, rank := 0]
+			final[, ambig := my.ambig]
+		}else{
+			final <- more[solution == sol & competitor == best]
+			final <- final[, .(
+				rank = 0, 
+				solution = best, 
+				competitor = sol, 
+				missing = -1 * missing, 
+				core = -1 * core, 
+				noncore = -1 * noncore, 
+				my.total = comp.total, 
+				comp.total = my.total, 
+				my.alone = comp.alone, 
+				comp.alone = my.alone, 
+				my.core = comp.core, 
+				comp.core = my.core, 
+				my.core.sp = comp.core.sp, 
+				comp.core.sp = my.core.sp, 
+				my.noncore = comp.noncore, 
+				comp.noncore = my.noncore, 
+				my.noncore.sp = comp.noncore.sp, 
+				comp.noncore.sp = my.noncore.sp, 
+				heter.reads = heter.reads, 
+				importance = importance,
+				ambig = my.ambig
+			)]
+		}
+	}else
+	{
+		final[, rank := 0]
+	}
+	copy(final)
+}))
+more <- rbind(extra, more)
+setorder(more, rank)
+
+het <- more[rank == 0]
 het[, gene := sub('\\*.+', '', solution)]
 het.ratio <- het[, .(ratio = max(heter.reads) / min(heter.reads), min = solution[which.min(heter.reads)]), by = gene]
 het.ratio <- het.ratio[ratio >= 5]
 more[solution %in% het.ratio$min, rank := 1000L + rank]
+setorder(more, rank)
 
-sols <- more$solution
-extra <- more[missing <= 0 & !competitor %in% sols, .(ambig = paste(competitor, collapse = ';')), by = solution]
-ambig <- extra$ambig
-names(ambig) <- extra$solution
-more[, ambig := ambig[solution]]
-
-print(more[rank == 1])
+print(more[rank == 0])
+print(freq[more[rank == 0, solution]])
 write.table(more, row = F, sep = '\t', quo = F, file = out.path)
 
-#save.image('temp2.rda')
