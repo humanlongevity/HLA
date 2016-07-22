@@ -95,7 +95,7 @@ while(<IN>)
 	$dna{$a[0]}->{$a[2]} = 1 if $matched{$a[0]};
 }
 
-open OUT, ">$out_file" or die $!;
+open OUT, "| gzip -c >$out_file" or die $!;
 print STDERR "translating matches to MSA\n";
 my %done;
 my %done2;
