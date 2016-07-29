@@ -4,7 +4,7 @@
 args <- commandArgs()
 code.source <- sub('--file=', '', args[4])
 if(length(args) != 7) {
-	cat("usage:", code.source, "input.tsv output.tsv\n")
+	cat("usage:", code.source, "input.tsv.gz output.tsv\n")
 	q()
 }
 set.seed(131)
@@ -16,7 +16,7 @@ options(mc.cores = detectCores())
 library(data.table)
 library(lpSolve)
 
-all <- fread(align.path)
+all <- fread(sprintf("gzip -dc %s", align.path))
 setnames(all, c('q', 'qpos0', 'qpos', 't', 'tlen', 'ts', 'te', 'mis', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
 all[, specific := as.double(specific)]
 all <- all[mis == 0]
@@ -167,6 +167,7 @@ zero.m <- t(matrix(all.zero, nrow = heter, ncol = nr))
 yindex <- matrix(c(1:nr, na + 1:nr), ncol = 2)
 gindex <- matrix(c(1:nr, na + nr + 1:nr), ncol = 2)
 beta <- 0.002
+#beta <- 0.0001
 
 # ILP objective
 f.obj <-  c(rep(0, na),   weight,      -beta * weight, 0  )
@@ -304,7 +305,6 @@ get.better <- function(sols, comps, superset){
 
 # 2: round 0 for better candidate searching
 max.hit <- sum(apply(mat2[, solution], 1, max))
-#save.image('temp-2.rda')
 cat("pulling non-core exons in\n")
 more <- do.call(rbind, mclapply(solution, function(s){
 	minus1 <- solution[solution != s]
@@ -347,7 +347,6 @@ more <- do.call(rbind, mclapply(solution, function(s){
 	cand[, solution := sol]
 	return(copy(cand))
 }))
-
 
 all.candidates <- unique(c(more$solution, more$competitor))
 all <- all[type %in% all.candidates]
@@ -505,8 +504,14 @@ more <- more[order(rank)]
 
 het <- more[rank == 0]
 het[, gene := sub('\\*.+', '', solution)]
-het.ratio <- het[, .(ratio = max(heter.reads) / min(heter.reads), min = solution[which.min(heter.reads)]), by = gene]
-het.ratio <- het.ratio[ratio >= 5]
+het.ratio <- het[, 
+	.(
+		ratio = max(heter.reads) / min(heter.reads), 
+		min.imp = importance[which.min(heter.reads)],
+		ratio.imp = importance[which.max(heter.reads)] / importance[which.min(heter.reads)],
+		min = solution[which.min(heter.reads)]
+	), by = gene]
+het.ratio <- het.ratio[ratio >= 5 & (min.imp < 0.1 | ratio.imp >= 10)]
 more[solution %in% het.ratio$min, rank := 1000L + rank]
 setorder(more, rank)
 

@@ -23,10 +23,8 @@ $BIN/preprocess.pl ${TEMP}.sam | gzip > $OUT/$ID.fq.gz
 rm $TEMP
 rm ${TEMP}.sam
 echo "Aligning reads to IMGT database"
-#diamond blastx -t . -C 20000 --index-mode 2 --seg no --min-score 10 --top 20 -c 1 -v -d $BIN/../data/hla -q $OUT/$ID.fq -a $OUT/$ID.daa
-#echo "Preparing data for the typing algorithm"
 $BIN/align.pl $OUT/$ID.fq.gz $OUT/$ID.tsv.gz
 echo "Typing"
-$BIN/typing-gz.r $OUT/$ID.tsv.gz $OUT/$ID.hla
+$BIN/typing.r $OUT/$ID.tsv.gz $OUT/$ID.hla
 echo "Reporting"
 $BIN/report.py -in $OUT/$ID.hla -out $OUT/$ID.json -subject $ID -sample $ID
