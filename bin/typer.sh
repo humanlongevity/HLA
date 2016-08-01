@@ -3,11 +3,10 @@
 set -e
 
 S3=$1
-OUT=$2
 ID=$3
-#OUT=hla-$ID
+OUT=hla-$ID
 
-[[ $# -ne 3 ]] && {
+[[ $# -ne 2 ]] && {
     echo "usage: $(basename "$0") [S3://path.bam] [sample_id]";
     exit 1;
 }
