@@ -3,7 +3,7 @@
 set -e
 
 S3=$1
-ID=$3
+ID=$2
 OUT=hla-$ID
 
 [[ $# -ne 2 ]] && {
