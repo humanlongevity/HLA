@@ -10,6 +10,7 @@ deploy:
 	sed "s|BASEDOCKERNAME|$(NS)/$(NAME)-dev:$(TAG)|" < deploy.dockerfile > deploy.filled.dockerfile
 	rsync -avP ../bin ./
 	rsync -avP ../data/hla.* ./data/
+	rsync -avP ../data/chr6 ./data/
 	docker build -t $(NS)/$(NAME) -f deploy.filled.dockerfile .
 	docker tag $(NS)/$(NAME) $(NS)/$(NAME):$(TAG)
 	rm -r bin/ data/

@@ -38,13 +38,37 @@ RUN wget https://github.com/samtools/samtools/releases/download/1.3/samtools-1.3
 	&& cd .. \
 	&& rm -rf samtools-1.3*
 
-RUN wget https://github.com/bbuchfink/diamond/releases/download/v0.8.15/diamond-linux64.tar.gz \
-	&& tar xzf diamond-linux64.tar.gz \
-	&& mv diamond /usr/bin/ \
-	&& rm diamond-linux64.tar.gz
+# for getting reads from 3rd party BAMs
+RUN wget http://downloads.sourceforge.net/project/bio-bwa/bwa-0.7.15.tar.bz2 \
+	&& tar xjf bwa-0.7.15.tar.bz2 \
+	&& cd bwa-0.7.15 \
+	&& make -j 8 \
+	&& mv bwa /usr/bin/ \
+	&& cd .. \
+	&& rm -rf bwa-*
+
+# for getting reads from 3rd party BAMs
+RUN wget https://github.com/lomereiter/sambamba/releases/download/v0.6.3/sambamba_v0.6.3_linux.tar.bz2 \
+	&& tar xjf sambamba_v0.6.3_linux.tar.bz2 \
+	&& mv sambamba_v0.6.3 /usr/bin/sambamba \
+	&& rm sambamba_v0.6.3_linux.tar.bz2
+
+# for getting reads from 3rd party BAMs
+RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.26.0/bedtools-2.26.0.tar.gz \
+	&& tar xzf bedtools-2.26.0.tar.gz \
+	&& cd bedtools2/ \
+	&& make -j 8 \
+	&& make install \
+	&& cd .. \
+	&& rm -rf bedtools*
 
 RUN echo 'install.packages("devtools", repos="http://cran.r-project.org", clean=TRUE);q()' | sudo R --no-save \
 	&& echo 'devtools::install_version("data.table", "1.9.6", repos="http://cran.r-project.org", clean=TRUE);q()' | sudo R --no-save \
 	&& echo 'devtools::install_version("lpSolve", "5.6.13", repos="http://cran.r-project.org", clean=TRUE);q()' | sudo R --no-save
+
+RUN wget https://github.com/bbuchfink/diamond/releases/download/v0.8.15/diamond-linux64.tar.gz \
+	&& tar xzf diamond-linux64.tar.gz \
+	&& mv diamond /usr/bin/ \
+	&& rm diamond-linux64.tar.gz
 
 ENTRYPOINT ["python", "/opt/bin/run.py"]
