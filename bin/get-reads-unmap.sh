@@ -16,3 +16,8 @@ rm ${OUT}.1.fq
 rm ${OUT}.2.fq
 rm ${OUT}.full.bam
 rm ${OUT}.full.bam.bai
+
+[[ $# -eq 3 ]] && {
+	aws s3 cp ${OUT} $3 --sse
+	aws s3 cp ${OUT}.bai $3 --sse
+}
