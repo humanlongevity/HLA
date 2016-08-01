@@ -4,7 +4,7 @@
 args <- commandArgs()
 code.source <- sub('--file=', '', args[4])
 if(length(args) != 7) {
-	cat("usage:", code.source, "input.tsv.gz output.tsv\n")
+	cat("usage:", code.source, "input.tsv output.tsv\n")
 	q()
 }
 set.seed(131)
@@ -16,7 +16,8 @@ options(mc.cores = detectCores())
 library(data.table)
 library(lpSolve)
 
-all <- fread(sprintf("gzip -dc %s", align.path))
+#all <- fread(sprintf("gzip -dc %s", align.path))
+all <- fread(align.path)
 setnames(all, c('q', 'qpos0', 'qpos', 't', 'tlen', 'ts', 'te', 'mis', 'type', 'msa', 'exon', 'specific', 'left', 'right', 'start', 'end'))
 all[, specific := as.double(specific)]
 all <- all[mis == 0]
