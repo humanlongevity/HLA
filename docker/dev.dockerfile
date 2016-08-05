@@ -66,6 +66,8 @@ RUN echo 'install.packages("devtools", repos="http://cran.r-project.org", clean=
 	&& echo 'devtools::install_version("data.table", "1.9.6", repos="http://cran.r-project.org", clean=TRUE);q()' | sudo R --no-save \
 	&& echo 'devtools::install_version("lpSolve", "5.6.13", repos="http://cran.r-project.org", clean=TRUE);q()' | sudo R --no-save
 
+RUN echo 'source("http://bioconductor.org/biocLite.R"); biocLite("IRanges", ask = F, suppressUpdates = T, suppressAutoUpdate = T)' | sudo R --no-save
+
 RUN wget https://github.com/bbuchfink/diamond/releases/download/v0.8.15/diamond-linux64.tar.gz \
 	&& tar xzf diamond-linux64.tar.gz \
 	&& mv diamond /usr/bin/ \
