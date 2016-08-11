@@ -6,8 +6,8 @@ S3=$1
 ID=$2
 OUT=hla-$ID
 
-[[ $# -ne 2 ]] && {
-    echo "usage: $(basename "$0") [S3://path.bam] [sample_id]";
+[[ $# -lt 2 ]] && {
+    echo "usage: $(basename "$0") S3://path.bam sample_id [delete]";
     exit 1;
 }
 BIN="`dirname \"$0\"`"
@@ -22,8 +22,14 @@ $BIN/preprocess.pl ${TEMP}.sam | gzip > $OUT/$ID.fq.gz
 rm $TEMP
 rm ${TEMP}.sam
 echo "Aligning reads to IMGT database"
-$BIN/align.pl $OUT/$ID.fq.gz $OUT/$ID.tsv
+$BIN/align.pl $OUT/${ID}.fq.gz $OUT/${ID}.tsv
 echo "Typing"
-$BIN/typing.r $OUT/$ID.tsv $OUT/$ID.hla
+$BIN/typing.r $OUT/${ID}.tsv $OUT/${ID}.hla
 echo "Reporting"
-$BIN/report.py -in $OUT/$ID.hla -out $OUT/$ID.json -subject $ID -sample $ID
+$BIN/report.py -in $OUT/${ID}.hla -out $OUT/${ID}.json -subject $ID -sample $ID
+
+[[ $# -eq 3 ]] && {
+	rm $OUT/${ID}.tsv
+	rm $OUT/${ID}.fq.gz
+	rm $OUT/${ID}.hla
+}

@@ -45,12 +45,16 @@ if __name__ == '__main__':
     parser.add_argument('--sample_id', type=str, required = True, help='Sample ID/Name')
     parser.add_argument('--input_bam_path', type=str, required = True, help='Input file')
     parser.add_argument('--output_path', type=str, required = True, help='Output directory')
+    parser.add_argument('--delete', help='Delete all intermediate files')
     args, _ = parser.parse_known_args()
 
     logger.info('Sample_id: {} Input file: {}'.format(args.sample_id, args.input_bam_path))
     out_local_path = join('hla-' + args.sample_id, args.sample_id + '.json')
     bin_path = join(dirname(abspath(__file__)), 'typer.sh') 
-    check_call([bin_path, args.input_bam_path, args.sample_id])
+    if args.delete:
+        check_call([bin_path, args.input_bam_path, args.sample_id, 'delete'])
+    else:
+        check_call([bin_path, args.input_bam_path, args.sample_id])
     out_final_path = join(args.output_path, 'report-'+args.sample_id+'-hla.json')
     output_file(out_local_path, out_final_path)
     done_path = join('hla-' + args.sample_id, '_SUCCESS')
