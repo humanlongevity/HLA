@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -eu -o pipefail
 
 IN=$1
 OUT=$2
