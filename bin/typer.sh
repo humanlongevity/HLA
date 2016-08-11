@@ -28,8 +28,9 @@ $BIN/typing.r $OUT/${ID}.tsv $OUT/${ID}.hla
 echo "Reporting"
 $BIN/report.py -in $OUT/${ID}.hla -out $OUT/${ID}.json -subject $ID -sample $ID
 
-[[ $# -eq 3 ]] && {
+if [ $# -eq 3 ]
+then
 	rm $OUT/${ID}.tsv
 	rm $OUT/${ID}.fq.gz
 	rm $OUT/${ID}.hla
-}
+fi
