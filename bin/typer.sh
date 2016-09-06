@@ -21,10 +21,15 @@ $BIN/preprocess.pl ${TEMP}.sam | gzip > $OUT/$ID.fq.gz
 rm ${TEMP}.sam
 echo "Aligning reads to IMGT database"
 $BIN/align.pl $OUT/${ID}.fq.gz $OUT/${ID}.tsv
+#note: if want to do full resolution typing:
+#$BIN/align.pl $OUT/${ID}.fq.gz $OUT/${ID}.tsv full
 echo "Typing"
 $BIN/typing.r $OUT/${ID}.tsv $OUT/${ID}.hla
 echo "Reporting"
 $BIN/report.py -in $OUT/${ID}.hla -out $OUT/${ID}.json -subject $ID -sample $ID
+
+#note: if want to do full resolution typing:
+#$BIN/full.r $OUT/${ID}.tsv.dna $OUT/${ID}.hla $OUT/${ID}.hla.full
 
 if [ $# -eq 3 ]
 then

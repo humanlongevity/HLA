@@ -8,7 +8,8 @@ my $bin=$FindBin::Bin;
 my $root = $bin;
 $root =~ s|/[^/]+?$||;
 
-die "usage: $0 fastq output\n" unless $#ARGV == 1;
+die "usage: $0 fastq output\n" unless $#ARGV >= 1;
+my $doDNA = 1 if $#ARGV > 1;
 my $fastq_file = shift;
 my $out_file = shift;
 
@@ -87,18 +88,24 @@ print STDERR "\tmatched to ", scalar(keys %matched), " HLA exons\n";
 print STDERR "\t", scalar(keys %nonspec), " reads matched to HLA types not in the MSA file\n";
 
 my %dna;
+my %dna_name;
 open(IN, "$root/data/hla.fna") or die $!;
 while(<IN>)
 {
 	my @a = split(/\t/, $_);
-	$dna{$a[0]}->{$a[2]} = 1 if $matched{$a[0]};
+	if($matched{$a[0]}){
+		$dna{$a[0]}->{$a[2]} = 1;
+		$dna_name{$a[0]}->{$a[2]}->{$a[1]} = 1;
+	}
 }
 
 open OUT, ">$out_file" or die $!;
+open OUT2, ">$out_file.dna" or die $!;
 print STDERR "translating matches to MSA\n";
 my %done;
 my %done2;
 my %save;
+my %save2;
 for my $g(keys %match)
 {
 	for my $q(keys %{$match{$g}})
@@ -144,6 +151,12 @@ for my $g(keys %match)
 			for my $k(keys %{$save{$tag}})
 			{
 				print OUT "$qu\t$qpart\t$qlen{$qu}:$qs-$qe\t$k";
+			}
+			if($doDNA){
+				for my $k(keys %{$save2{$tag}})
+				{
+					print OUT2 "$qu\t$k";
+				}
 			}
 			next;
 		}
@@ -215,6 +228,18 @@ for my $g(keys %match)
 #				my $edit = distance($qcode, $tt);
 				my $edit = $qcode eq $tt ? 0 : 1;
 				$dist = $edit if $edit < $dist;
+				if($doDNA)
+				{
+					if($edit == 0)
+					{
+						for my $name(keys %{$dna_name{$t}->{$tcode}})
+
+						{
+							print OUT2 "$qu\t$t\t$name\n";
+							$save2{$tag}->{"$t\t$name\n"} = 1;
+						}
+					}
+				}
 			}
 			print OUT "$qu\t$qpart\t$qlen{$qu}:$qs-$qe\t$t\t$tlen{$t}\t$ts\t$te\t$dist\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n";
 			$save{$tag}->{"$t\t$tlen{$t}\t$ts\t$te\t$dist\t$type{$t}\t$is_gene{$t}\t$spe\t$left\t$right\t$start\t$end\n"} = 1;
@@ -222,6 +247,9 @@ for my $g(keys %match)
 	}
 }
 close OUT;
+close OUT2;
+unlink "$out_file.dna" unless $doDNA;
+
 
 sub translate
 {
