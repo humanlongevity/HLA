@@ -2,15 +2,14 @@
 # Author: Xie Chao
 set -eu -o pipefail
 
-S3=$1
-ID=$2
-OUT=hla-$ID
-
 [[ $# -lt 2 ]] && {
     echo "usage: $(basename "$0") S3://path.bam sample_id [delete]";
     exit 1;
 }
 BIN="`dirname \"$0\"`"
+S3=$1
+ID=$2
+OUT=hla-$ID
 
 mkdir -p $OUT
 TEMP=temp-$RANDOM-$RANDOM-$RANDOM
