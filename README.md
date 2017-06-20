@@ -1,14 +1,23 @@
 xHLA: Fast and accurate HLA typing from short read sequence data
 ================================================================
+The Human Leukocyte Antigen (HLA) gene complex on human chromosome
+6 is one of the most polymorphic regions in the human
+genome, and contributes in large part to the diversity of the immune
+system. Accurate typing of HLA genes with short read sequencing
+data has historically been difficult due to the sequence similarity between
+the polymorphic alleles.  xHLA iteratively refines the mapping results at
+the amino acid level to achieve 99 to 100% 4-digit typing accuracy for both
+class I and II HLA genes, taking only about 3 minutes to process a 30X
+whole genome BAM file on a desktop computer.
 
 Installation
 ------------
 Compile docker image:
 
 ```bash
-$ cd docker
-$ make build
-$ make deploy
+cd docker
+make build
+make deploy
 ```
 
 Usage
@@ -19,6 +28,34 @@ Run xHLA caller directly on a BAM file.
 docker run -v `pwd`:`pwd` -w `pwd` docker-dev.hli.io/xchao/hla \
     --sample_id test --input_bam_path test.bam \
     --output_path test
+```
+
+Output is a JSON file that lists 12 HLA alleles, 2 for each of the HLA genes:
+
+```bash
+{
+ "subject_id": "176444255",
+ "creation_time": "2016-05-04T08:25:04Z",
+ "report_version": "1.1",
+ "report_type": "hla_typing",
+ "sample_id": "176444255",
+ "hla": {
+  "alleles": [
+   "A*01:01",
+   "A*02:01",
+   "B*13:02",
+   "B*37:01",
+   "C*06:02",
+   "C*06:02",
+   "DPB1*04:01",
+   "DPB1*04:01",
+   "DQB1*02:02",
+   "DQB1*05:01",
+   "DRB1*07:01",
+   "DRB1*10:01"
+  ]
+ }
+}
 ```
 
 License
