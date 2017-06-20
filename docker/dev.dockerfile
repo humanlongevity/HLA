@@ -15,11 +15,11 @@ RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selectio
 		g++ \
 		zlib1g-dev \
 		libcurl4-openssl-dev \
-		r-base \ 
+		r-base \
 		wget \
 		python-pip \
  	&& apt-get clean \
- 	&& rm -rf /var/lib/apt/lists/*		
+ 	&& rm -rf /var/lib/apt/lists/*
 
 RUN pip install --upgrade pip \
 	&&  pip install awscli requests pytest boto3 logger
@@ -40,6 +40,7 @@ RUN wget https://github.com/samtools/samtools/releases/download/1.3/samtools-1.3
 
 # for getting reads from 3rd party BAMs
 RUN wget http://downloads.sourceforge.net/project/bio-bwa/bwa-0.7.15.tar.bz2 \
+    --no-check-certificate \
 	&& tar xjf bwa-0.7.15.tar.bz2 \
 	&& cd bwa-0.7.15 \
 	&& make -j 8 \
