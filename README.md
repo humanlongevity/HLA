@@ -22,7 +22,8 @@ make deploy
 
 Usage
 -----
-Run xHLA caller directly on a BAM file.
+Run xHLA caller directly on an indexed BAM file generated using
+BWA-mem against hg38 reference without alt contigs:
 
 ```bash
 docker run -v `pwd`:`pwd` -w `pwd` docker-dev.hli.io/xchao/hla \
