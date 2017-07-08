@@ -59,6 +59,13 @@ Output is a JSON file that lists 12 HLA alleles, 2 for each of the HLA genes:
 }
 ```
 
+Citation
+--------
+Xie et al. (2017) Fast and accurate HLA typing from short-read next-generation
+sequence data with xHLA.
+***PNAS***
+[doi:10.1073/pnas.1707945114](http://www.pnas.org/content/early/2017/06/27/1707945114)
+
 License
 -------
 The HLA Typing Software Code (the "Code") is made available by Human
