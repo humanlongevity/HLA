@@ -31,8 +31,8 @@ docker run -v `pwd`:`pwd` -w `pwd` docker-dev.hli.io/xchao/hla \
     --output_path test
 ```
 
-For other types of BAMs, pre-processing is required. Please check details
-[here](https://github.com/humanlongevity/HLA/wiki/BAMs-compatible-with-xHLA).
+For other types of BAMs, pre-processing is required. **Please check details
+[here](https://github.com/humanlongevity/HLA/wiki/BAMs-compatible-with-xHLA).**
 
 Output is a JSON file that lists 12 HLA alleles, 2 for each of the HLA genes:
 

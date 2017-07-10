@@ -14,9 +14,6 @@ MEM=$(awk 'BEGIN{for (i=1; i<ARGC;i++)
    printf "%.0f\n", ARGV[i]}' $(echo "$(grep MemTotal /proc/meminfo | awk '{print $2}') / 1000 * 0.95" |  bc))
 BIN="`dirname \"$0\"`"
 
-
-
-
 cleanup(){
 
   rm "${OUT}.1.fq" || true
@@ -41,3 +38,9 @@ sambamba index "${OUT}.full.bam"
 
 samtools view -o "$OUT" -b "${OUT}.full.bam" chr6:29844528-33100696
 sambamba index "$OUT"
+
+# S3 upload
+[[ $# -eq 3 ]] && {
+	aws s3 cp ${OUT} $3 --sse
+	aws s3 cp ${OUT}.bai $3 --sse
+}
