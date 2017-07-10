@@ -11,8 +11,9 @@ OUT="$2"
 NCORE=$(grep -c '^processor' /proc/cpuinfo)
 # POSIX compliant system memory query
 MEM=$(awk 'BEGIN{for (i=1; i<ARGC;i++)
-   printf "%.0f\n", ARGV[i]}' "$(( $(grep MemTotal /proc/meminfo | awk '{print $2}') / 1000 * 0.95))")
+   printf "%.0f\n", ARGV[i]}' $(echo "$(grep MemTotal /proc/meminfo | awk '{print $2}') / 1000 * 0.95" |  bc))
 BIN="`dirname \"$0\"`"
+
 
 
 
