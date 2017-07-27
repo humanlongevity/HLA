@@ -1,4 +1,4 @@
-NS = docker-dev.hli.io/xchao
+NS = humanlongevity
 TAG = 0.0.0
 NAME = hla
 

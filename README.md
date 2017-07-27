@@ -32,7 +32,7 @@ Run xHLA caller directly on an indexed BAM file generated using
 BWA-mem against hg38 reference without alt contigs:
 
 ```bash
-docker run -v `pwd`:`pwd` -w `pwd` docker-dev.hli.io/xchao/hla \
+docker run -v `pwd`:`pwd` -w `pwd` humanlongevity/hla \
     --sample_id test --input_bam_path test.bam \
     --output_path test
 ```
