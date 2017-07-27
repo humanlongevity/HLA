@@ -12,7 +12,13 @@ whole genome BAM file on a desktop computer.
 
 Installation
 ------------
-Compile docker image:
+Simply pull from Docker hub:
+
+```bash
+docker pull humanlongevity/hla
+```
+
+Or, compile docker image yourself:
 
 ```bash
 cd docker
