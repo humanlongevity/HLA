@@ -49,10 +49,10 @@ RUN wget http://downloads.sourceforge.net/project/bio-bwa/bwa-0.7.15.tar.bz2 \
 	&& rm -rf bwa-*
 
 # for getting reads from 3rd party BAMs
-RUN wget https://github.com/lomereiter/sambamba/releases/download/v0.6.3/sambamba_v0.6.3_linux.tar.bz2 \
-	&& tar xjf sambamba_v0.6.3_linux.tar.bz2 \
-	&& mv sambamba_v0.6.3 /usr/bin/sambamba \
-	&& rm sambamba_v0.6.3_linux.tar.bz2
+RUN wget https://github.com/lomereiter/sambamba/releases/download/v0.6.6/sambamba_v0.6.6_linux.tar.bz2 \
+	&& tar xjf sambamba_v0.6.6_linux.tar.bz2 \
+	&& mv sambamba_v0.6.6 /usr/bin/sambamba \
+	&& rm sambamba_v0.6.6_linux.tar.bz2
 
 # for getting reads from 3rd party BAMs
 RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.26.0/bedtools-2.26.0.tar.gz \
