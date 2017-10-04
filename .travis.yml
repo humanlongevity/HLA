@@ -5,8 +5,8 @@ language: python
 services:
   - docker
 
-  before_install:
+before_install:
   - docker pull humanlongevity/hla
 
-  script:
+script:
   - docker run -v `pwd`:`pwd` -w `pwd` humanlongevity/hla --sample_id test --input_bam_path tests/test.bam --output_path test
