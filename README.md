@@ -1,5 +1,14 @@
 xHLA: Fast and accurate HLA typing from short read sequence data
 ================================================================
+
+[![Travis-CI](https://travis-ci.org/humanlongevity/HLA.svg?branch=master)](https://travis-ci.org/humanlongevity/HLA)
+
+| | |
+|---|---|
+| Author | Chao Xie |
+| | Haibao Tang ([tanghaibao](http://github.com/tanghaibao)) |
+| License | See included LICENSE |
+
 The Human Leukocyte Antigen (HLA) gene complex on human chromosome
 6 is one of the most polymorphic regions in the human
 genome, and contributes in large part to the diversity of the immune
@@ -33,7 +42,7 @@ BWA-mem against hg38 reference without alt contigs:
 
 ```bash
 docker run -v `pwd`:`pwd` -w `pwd` humanlongevity/hla \
-    --sample_id test --input_bam_path test.bam \
+    --sample_id test --input_bam_path tests/test.bam \
     --output_path test
 ```
 
@@ -44,11 +53,11 @@ Output is a JSON file that lists 12 HLA alleles, 2 for each of the HLA genes:
 
 ```bash
 {
- "subject_id": "176444255",
- "creation_time": "2016-05-04T08:25:04Z",
- "report_version": "1.1",
+ "subject_id": "test",
+ "creation_time": "2017-10-04T18:59:34Z",
+ "report_version": "1.2",
  "report_type": "hla_typing",
- "sample_id": "176444255",
+ "sample_id": "test",
  "hla": {
   "alleles": [
    "A*01:01",

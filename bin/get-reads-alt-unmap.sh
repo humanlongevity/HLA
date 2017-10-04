@@ -13,7 +13,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     NCORE=$(grep -c '^processor' /proc/cpuinfo)
     # POSIX compliant system memory query
     MEM=$(awk 'BEGIN{for (i=1; i<ARGC;i++)
-       printf "%.0f\n", ARGV[i]}' $(echo "$(grep MemTotal /proc/meminfo | awk '{print $2}') / 1000 * 0.95" |  bc))
+       printf "%.0fGB\n", ARGV[i]}' $(echo "$(grep MemTotal /proc/meminfo | awk '{print $2}') * 0.95 / 1000 / 1000" | bc))
 elif [[ "$OSTYPE" == darwin* ]]; then
     NCORE=$(sysctl -n hw.ncpu)
     MEM=8GB
