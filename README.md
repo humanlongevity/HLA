@@ -46,6 +46,26 @@ docker run -v `pwd`:`pwd` -w `pwd` humanlongevity/hla \
     --output_path test
 ```
 
+Here is how to run it in none-docker environment
+------------------------------------------------
+```
+$ diamond makedb --in /PATH-TO/HLA.git/data/hla.faa --db /PATH-TO/HLA.git/data/hla.dmnd
+diamond v0.8.15.77 | by Benjamin Buchfink <buchfink@gmail.com>
+Check http://github.com/bbuchfink/diamond for updates.
+
+#CPU threads: 12
+Database file: /share/apps/HLA.git/data/hla.faa
+Opening the database file...  [0.046007s]
+Loading sequence data (0 sequences processed)...  [0.170403s]
+Writing trailer...  [0.001012s]
+Closing the database file...  [0.034115s]
+Processed 27618 sequences, 2118355 letters.
+Total time = 0.251665s
+
+# Here is how to run a sample
+$ run.py --sample_id test --input_bam_path tests/test.bam --output_path test
+```
+
 For other types of BAMs, pre-processing is required. **Please check details
 [here](https://github.com/humanlongevity/HLA/wiki/BAMs-compatible-with-xHLA).**
 
