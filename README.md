@@ -54,7 +54,7 @@ diamond v0.8.15.77 | by Benjamin Buchfink <buchfink@gmail.com>
 Check http://github.com/bbuchfink/diamond for updates.
 
 #CPU threads: 12
-Database file: /share/apps/HLA.git/data/hla.faa
+Database file: /PATH-TO/HLA.git/data/hla.faa
 Opening the database file...  [0.046007s]
 Loading sequence data (0 sequences processed)...  [0.170403s]
 Writing trailer...  [0.001012s]
