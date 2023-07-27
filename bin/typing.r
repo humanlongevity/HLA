@@ -2,17 +2,20 @@
 # Author: Xie Chao
 
 args <- commandArgs()
-code.source <- sub('--file=', '', args[4])
-if(length(args) != 7) {
-	cat("usage:", code.source, "input.tsv output.tsv\n")
+code.source <- sub('--file=', '', args[4]) # code.source is the name of the file
+if(length(args) != 8) {
+	cat("usage:", code.source, "input.tsv output.tsv cores\n")
 	q()
 }
 set.seed(131)
 data.dir <- dirname(code.source)
 align.path <- args[6]
 out.path <- args[7]
+cores <- args[8]
+print('----->> Cores in R script',cores)
+print(cores)
 library(parallel)
-options(mc.cores = detectCores())
+options(mc.cores = cores)
 library(data.table)
 library(lpSolve)
 

@@ -10,6 +10,7 @@ set -eu -o pipefail
 BIN="`dirname \"$0\"`"
 S3=$1
 ID=$2
+CORES=$3
 OUT=hla-$ID
 DELETE=false
 FULL=false
@@ -36,13 +37,14 @@ $BIN/preprocess.pl ${TEMP}.sam | gzip > $OUT/$ID.fq.gz
 rm ${TEMP}.sam
 echo "Aligning reads to IMGT database"
 if [ "$FULL" = true ]; then
-    $BIN/align.pl $OUT/${ID}.fq.gz $OUT/${ID}.tsv full
+    $BIN/align.pl $OUT/${ID}.fq.gz $OUT/${ID}.tsv ${CORES} full
 else
-    $BIN/align.pl $OUT/${ID}.fq.gz $OUT/${ID}.tsv
+    $BIN/align.pl $OUT/${ID}.fq.gz $OUT/${ID}.tsv ${CORES}
 fi
 
+echo "number of cores in typer.sh ->>>>" ${CORES}
 echo "Typing"
-$BIN/typing.r $OUT/${ID}.tsv $OUT/${ID}.hla
+$BIN/typing.r $OUT/${ID}.tsv $OUT/${ID}.hla ${CORES}
 
 echo "Reporting"
 $BIN/report.py -in $OUT/${ID}.hla -out $OUT/${ID}.json -subject $ID -sample $ID

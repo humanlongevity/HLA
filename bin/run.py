@@ -50,19 +50,20 @@ if __name__ == '__main__':
                         help='Delete all intermediate files')
     parser.add_argument('--full', action="store_true",
                         help='Run full-digit resolution, default: 4-digit')
+    parser.add_argument('--cores',type=int, required=True, help='No. of cores')
     args, _ = parser.parse_known_args()
 
-    logger.info('Sample_id: {} Input file: {}'.format(args.sample_id, args.input_bam_path))
+    logger.info('Sample_id: {} Input file: {} Cores: {}'.format(args.sample_id, args.input_bam_path, args.cores))
     out_local_path = join('hla-' + args.sample_id, args.sample_id + '.json')
     bin_path = join(dirname(abspath(__file__)), 'typer.sh')
-    bin_args = [bin_path, args.input_bam_path, args.sample_id]
+    bin_args = [bin_path, args.input_bam_path, args.sample_id, str(args.cores)]
     if args.delete:
         bin_args += ['delete']
     if args.full:
         bin_args += ['full']
 
-    check_call(bin_args)
-
+    check_call(bin_args) 
+    
     out_final_path = join(args.output_path, 'report-'+args.sample_id+'-hla.json')
     output_file(out_local_path, out_final_path)
     done_path = join('hla-' + args.sample_id, '_SUCCESS')
