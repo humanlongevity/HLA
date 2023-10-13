@@ -31,7 +31,7 @@ mkdir -p $OUT
 TEMP=temp-$RANDOM-$RANDOM-$RANDOM
 
 echo "Extracting reads from S3"
-samtools view -u '$S3' chr6:29886751-33090696 | samtools view -L $BIN/../data/hla.bed - > ${TEMP}.sam
+samtools view -u "$S3" chr6:29886751-33090696 | samtools view -L $BIN/../data/hla.bed - > ${TEMP}.sam
 $BIN/preprocess.pl ${TEMP}.sam | gzip > $OUT/$ID.fq.gz
 rm ${TEMP}.sam
 echo "Aligning reads to IMGT database"
